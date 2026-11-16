@@ -508,11 +508,17 @@ Weight tuning had reached its limit, which is the motivation for weights that ch
 These failures need a longer or earlier step, which is the job of the gait generator and outside the reach of the refiner.
 
 \section{Conclusion}
-A whole-body MPC is optimal only for its model.
-We proposed a control policy refiner that modifies the gain and set-point of its feedback policy through a latent representation $\gamma$ of cost-weight scales and a set-point shift, decoded by one backward pass of the solver.
-Because the refiner stays within gains that are optimal for the model, learning is structured and low-dimensional, and the aim is robustness to uncertainty rather than a new motion.
-The base controller is implemented and walks in simulation: the reduced model makes the gait generator fast, and its guidance makes the whole-body MPC fast.
-The remaining weaknesses come from what the two models leave out; those in the whole-body execution map to the two parts of $\gamma$, while recovery steps that fall short remain with the gait generator.
+We built a torque-controlled walking controller for HRP-5P that couples an IS-MPC gait generator with a whole-body MPC of the legs.
+The gait generator solves footstep positions and timing jointly in one scaled nonlinear program, adapts the swing step when the measured DCM leaves a dead band, and keeps the ZMP within the measured support.
+The whole-body MPC tracks its references with Box-FDDP at 20\,Hz within the torque limits, and its Riccati feedback runs at 1\,kHz.
+In simulation, the robot walks at up to 0.5\,m/s, turns at up to 0.3\,rad/s and walks backward, with a median whole-body solve of 5.8\,ms.
+It does not fall on random command schedules or restarts, and it recovers 80 of 104 pushes over a full stride, on par with a position-controlled IS-MPC walker that walks only up to 0.28\,m/s.
+The remaining failures come from sideways pushes, mostly after recovery steps that land short of the DCM, which is the job of the gait generator.
+
+A whole-body MPC is still optimal only for its model.
+We proposed a control policy refiner that modifies the gain and set-point of its feedback policy through a latent representation $\gamma$ of 22 cost-weight scales and set-point shifts, decoded by one backward pass of the solver.
+Because the refiner stays within gains that are optimal for some cost on the model, learning is structured and low-dimensional, and decoding costs at most one solver iteration.
+The base controller motivates it: replanning twice as often recovered 15 more pushes, which shows how much depends on the feedback between solves, and no single set of weights worked on every schedule; training the refiner under these uncertainties is our next step.
 
 % slightly smaller reference list (small deviation from the IEEE template, to stay within 6 pages)
 \begingroup
