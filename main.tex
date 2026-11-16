@@ -434,7 +434,7 @@ The refiner has not been trained yet, so this section reports the base controlle
 It sets the baseline and shows what the refiner will have to correct.
 
 \subsection{Setup}
-The controller is implemented in C++ as an mc\_rtc plugin and runs on the HRP-5P model (104\,kg) in mc\_mujoco, a MuJoCo \cite{todorov2012mujoco} interface, with a 1\,ms step and torque control.
+The controller is implemented in C++ as an mc\_rtc plugin and runs on the HRP-5P model (104\,kg) in mc\_mujoco \cite{singh2022mcmujoco}, a MuJoCo \cite{todorov2012mujoco} interface, with a 1\,ms step and torque control.
 Both solvers run inside the control step, which is acceptable in simulation but not yet real time.
 The robustness results come from sweeps on self-hosted x64 machines that run several cases in parallel; the walking results and timings come from a run of one case at a time on a laptop (Intel Core Ultra 9 185H).
 On one machine a case is deterministic, but whole sweeps have differed by one or two pushes between repeats, which we treat as noise.
