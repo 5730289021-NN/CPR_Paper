@@ -170,7 +170,7 @@ If a system subject to the constraint \eqref{eq:stab} is given an external push,
 Integrating \eqref{eq:stab} piecewisely over the steps reveals that the DCM must lie in a sum of the support regions weighted by $\mu_k-\mu_{k+1}$, where $\mu_k=e^{-\omega_0 t_k}$.
 A slack $s$ measures how much this condition is violated.
 Since $\mu_k$ reaches $10^{-7}$ at the end of the preview, the problem is badly scaled.
-Inspired by \cite{dallard2025adios}, we further replace $\mu_k$ by its ratio $\nu_k=\mu_k/\hat\mu_k$ to the nominal value, which brings all variables to order one and effectively eliminates the small-number problem.
+Inspired by the reference implementation \cite{mc_ismpcwalking}, we further replace $\mu_k$ by its ratio $\nu_k=\mu_k/\hat\mu_k$ to the nominal value, which brings all variables to order one and effectively eliminates the small-number problem.
 With $\hat p_f^i$ the nominal footsteps and $w_s,K_s$ weights, the cost is
 \begin{multline}
 J=\sum_k(\nu_k-1)^2+w_s\|s\|^2\\
@@ -178,7 +178,7 @@ J=\sum_k(\nu_k-1)^2+w_s\|s\|^2\\
 \frac{(\nu_i\hat\mu_i-\nu_{i-1}\hat\mu_{i-1})^2}{(\hat\mu_i-\hat\mu_{i-1})^2}
 \label{eq:cost}
 \end{multline}
-Instead of using block coordinate descent \cite{tseng2001bcd,dallard2025adios}, we solve positions and times jointly as one nonlinear program with CasADi \cite{andersson2019casadi} as the solver interface and IPOPT \cite{wachter2006ipopt} as the solver backend.
+Instead of using block coordinate descent \cite{tseng2001bcd,wright2015coordinate,dallard2025adios}, we solve positions and times jointly as one nonlinear program with CasADi \cite{andersson2019casadi} as the solver interface and IPOPT \cite{wachter2006ipopt} as the solver backend.
 
 The IS-MPC QP then uses the result as candidate footsteps to generate the motion primitives: the CoM and swing-foot trajectories.
 Its variables are the ZMP velocities $\dot p_j$, sampled every 50\,ms over a 2.5\,s control horizon, and the footstep positions $p_f^k$ in that horizon. It minimizes
@@ -468,7 +468,7 @@ Open-loop gait, FDDP, 10\,Hz & 1/28 & 0/12 & 28/48 & --\\
 + measured ZMP support & 0/28 & 0/12 & 35/48 & 65/104\\
 + whole-body MPC at 20\,Hz (ours) & 0/28 & 0/12 & -- & \textbf{80/104}\\
 \midrule
-ismpc\_walking \cite{ismpcwalking} (position control) & 1/28 & 0/12 & 37/48$^{*}$ & 79/104\\
+ismpc\_walking \cite{mc_ismpcwalking} (position control) & 1/28 & 0/12 & 37/48$^{*}$ & 79/104\\
 \bottomrule
 \multicolumn{5}{@{}l}{Random: 40\,s schedules of random commands. Restarts: walking again after a}\\
 \multicolumn{5}{@{}l}{stop. Pushes: 30 and 40\,N\,s in four directions while walking at 0.25\,m/s, at six}\\
@@ -486,7 +486,7 @@ Centering the ZMP limits on the measured feet adds three.
 The first push set covers only one stance phase of our 0.8\,s steps and turned out to favor it: over a full stride, the same controller recovers 65 of 104 pushes.
 Running the whole-body MPC at 20\,Hz instead of 10\,Hz, with the same 0.5\,s horizon in 20 knots of 25\,ms, raises this to 80 of 104 without any fall on the schedules or restarts.
 The gain comes from the rate, not the knots: 25\,ms knots at 10\,Hz recover only 53 of 104.
-The open-source ismpc\_walking controller \cite{ismpcwalking}, run on the same scenarios with position control, recovers 79 of 104, ten of them by stopping, but walks only up to 0.28\,m/s.
+The open-source ismpc\_walking controller \cite{mc_ismpcwalking}, run on the same scenarios with position control, recovers 79 of 104, ten of them by stopping, but walks only up to 0.28\,m/s.
 All forward and all but one backward pushes are recovered; 23 of our 24 failures come from sideways pushes.
 
 \subsection{What the refiner has to correct}
