@@ -380,36 +380,23 @@ Away from a stretched knee, the $6\times6$ matrix $J_{f,J}$ is invertible, and s
 \label{eq:legcompletion}
 \end{equation}
 A base shift therefore bends the legs without moving any foot, and $\delta s$ moves only the swing foot.
-The two shifts cover every set-point change that keeps the stance feet in place: the base and leg joints have $18$ position coordinates, and each stance foot removes six, which leaves $12$ in single support and the six of $\delta b$ in double support, where $\delta s$ has no effect.
-Because the base part of $\delta x$ is exactly $\delta b$, the shift asked for by the refiner is reproduced exactly; an orthogonal projection onto the null space of the contact Jacobian would distort it.
-A shift that moved a stance foot would be inconsistent with the contact: in double support it would only squeeze the feet against each other, and in single support the gain would push the stance foot into the ground and shift its CoP.
+Together they span every set-point change that keeps the stance feet in place: of the 18 position coordinates of the base and legs, each stance foot removes six, leaving 12 in single support and the six of $\delta b$ in double support.
+Unlike a projection onto the null space of the contact Jacobian, this reproduces the requested base shift exactly.
 
-The decoder does not shape $\delta x$ over time; the refiner does.
-When a foot lifts off or touches down, its row in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\delta s$ unless $\delta s$ is zero at that moment.
-Rather than imposing a fade, we rely on the policy, which observes the contact flags and the step phase.
-A reward term penalizes $\|\delta s\|$ while both feet are in contact, where it has no effect, and near the planned touchdown, so the policy learns to start each swing from zero and to bring $\delta s$ back to zero before the foot lands; the rate limit on $\gamma$ then makes $\delta s$ ramp in and out.
-A fade imposed by the decoder would guarantee continuity, but it would scale $\delta s$ with the phase, so the same output would mean a different shift at different times of the swing.
-The policy alone cannot guarantee continuity, however: step timing adaptation can move a touchdown earlier at short notice, contacts switch on the plan's clock rather than the sensed contact, and exploration noise keeps $\delta s$ from being exactly zero.
-As a safety net, the decoded shift is also slew-rate limited at the 1\,kHz control rate: each coordinate of $\delta x$ changes by at most a fixed amount per control step, so a jump at a contact switch becomes a ramp of a few tens of milliseconds whatever the policy outputs.
-Since $\delta s$ returns to zero before touchdown, the swing-foot shift does not move the footstep, which the gait generator plans and the next solve tracks.
+At liftoff and touchdown, the row of a foot in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\delta s$ unless $\delta s=0$.
+We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\delta s\|$ in double support and near touchdown; unlike a fixed fade, this keeps the meaning of $\delta s$ constant over the swing.
+Since a touchdown can move at short notice, each coordinate of $\delta x$ is also slew-rate limited at 1\,kHz, so any remaining jump becomes a short ramp.
+The shift is decoded only for the current node, with the Jacobians at $\xb_i$ and the contacts $\mathcal C_i$, and does not enter the backward pass.
 
-The shift is decoded only for the current node, with the Jacobians at the current set-point $\xb_i$ and the planned contacts $\mathcal C_i$ that $K'_i$ is computed with.
-Unlike $K'$, it is not needed over the horizon: $\delta x$ does not enter the backward pass, and the refiner outputs a new $\gamma_x$ at the next node from the measured state.
-
-The resulting torque $K'\delta x$ lies in the range of the gain.
-Since the Riccati policy is the first-order expansion of the MPC solution with respect to the state \cite{dantec2022firstorder}, for a small shift this is the torque that an MPC with the refined weights would command if the robot were displaced by $-\delta x$.
-In other words, the refiner acts as a learned bias on the state the controller sees.
-It does not move the references that the MPC tracks: every solve starts again from the measured state and pulls it toward the references of the gait generator, so the robot settles where this pull balances the torque $K'\delta x$, not at $\xb\oplus\delta x$.
-The shift also enters a loop that is already closed.
+Since the Riccati policy is the first-order expansion of the MPC solution \cite{dantec2022firstorder}, the torque $K'\delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\delta x$: a learned bias on the state the controller sees.
+It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\delta x$.
 With $\zeta_i=x_i\ominus\xb_i$ and $A_i,B_i$ the dynamics Jacobians, the error evolves as
 \begin{equation}
-\zeta_{i+1}=(A_i-B_iK'_i)\,\zeta_i+B_iK'_i\,\delta x_i .
+\zeta_{i+1}=(A_i-B_iK'_i)\,\zeta_i+B_iK'_i\,\delta x_i ,
 \label{eq:cl}
 \end{equation}
-If the time-varying closed loop $A_i-B_iK'_i$ is exponentially stable, a bounded shift gives a bounded deviation.
-A gain only reacts to an error that already exists, so it cannot remove a steady error such as a CoM offset, but the shift can.
-The two parts are not independent, though.
-The torque from a shift is $K'\delta x$ and changes with the weights, so the refiner has to learn both together.
+which stays bounded for a bounded shift if the time-varying closed loop is exponentially stable.
+Unlike a gain, the shift can remove a steady error such as a CoM offset, but its torque $K'\delta x$ depends on the weights, so the refiner learns both parts together.
 
 \subsection{Properties and limits}
 \emph{Structured.} With positive weights, $Q_{uu}$ is positive definite and $K'$ is the optimal feedback of a valid local linear-quadratic problem.
