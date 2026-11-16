@@ -292,7 +292,7 @@ Wrench cone & $w_W=10$ & --\\
 \end{figure}
 
 \subsection{Overview}
-According to \eqref{eq:riccati}, the set-point $\xb$ is the state the robot should be in, and the gain $K$ sets how the joint torques react to an error.
+According to \eqref{eq:riccati}, the set-point $\xb$ is the state the plan expects the robot to be in, and the gain $K$ sets how the joint torques react to an error.
 Since this control law gives the actual joint torques, it determines the behavior at the small scale, which has to cope with a push, a mismatched mass distribution or rough terrain.
 At the node rate of 40\,Hz, the refiner (Fig.~\ref{fig:stack}) adjusts both parts:
 \begin{equation}
@@ -362,15 +362,16 @@ The set-point shift has the same layout as the state error,
 \label{eq:setpoint}
 \end{equation}
 with the base pose first, then the twelve leg joints, and a zero velocity part.
+The shift is applied at the current time only and held until the refiner outputs the next $\gamma_x$, so it is an offset rather than a trajectory, and a zero velocity part is consistent with it.
 To first order, a base shift $\delta b$ and a joint change $\delta q_{J,f}$ of leg $f$ move foot $f$ by
 \begin{equation}
 \delta p_f=J_{f,B}\,\delta b+J_{f,J}\,\delta q_{J,f},
 \label{eq:footmotion}
 \end{equation}
 where $J_{f,B}$ and $J_{f,J}$ are the columns of the Jacobian of foot $f$ for the base and for the six joints of its leg.
-A foot in contact must not move, and a swinging foot moves by $\delta s$, faded in and out over the swing phase $\phi\in[0,1]$:
+A foot in contact must not move, and a swinging foot moves by $\delta s$:
 \begin{equation}
-\delta p_f=\begin{cases}0 & f\ \text{in contact},\\ \sin(\pi\phi)\,\delta s & f\ \text{swinging}.\end{cases}
+\delta p_f=\begin{cases}0 & f\ \text{in contact},\\ \delta s & f\ \text{swinging}.\end{cases}
 \label{eq:footshift}
 \end{equation}
 Away from a stretched knee, the $6\times6$ matrix $J_{f,J}$ is invertible, and solving \eqref{eq:footmotion} gives one rule for both legs,
@@ -381,23 +382,29 @@ Away from a stretched knee, the $6\times6$ matrix $J_{f,J}$ is invertible, and s
 A base shift therefore bends the legs without moving any foot, and $\delta s$ moves only the swing foot.
 The two shifts cover every set-point change that keeps the stance feet in place: the base and leg joints have $18$ position coordinates, and each stance foot removes six, which leaves $12$ in single support and the six of $\delta b$ in double support, where $\delta s$ has no effect.
 Because the base part of $\delta x$ is exactly $\delta b$, the shift asked for by the refiner is reproduced exactly; an orthogonal projection onto the null space of the contact Jacobian would distort it.
-A shift that moved a stance foot would only create internal forces.
-The fade makes $\delta x$ continuous at liftoff and touchdown, where the row of a foot in \eqref{eq:footshift} switches; without it, the joint set-point would jump by $J_{f,J}^{-1}\delta s$.
-The swing-foot shift does not move the footstep, which the gait generator plans and the next solve tracks.
+A shift that moved a stance foot would be inconsistent with the contact: in double support it would only squeeze the feet against each other, and in single support the gain would push the stance foot into the ground and shift its CoP.
+
+The decoder does not shape $\delta x$ over time; the refiner does.
+When a foot lifts off or touches down, its row in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\delta s$ unless $\delta s$ is zero at that moment.
+Rather than imposing a fade, we rely on the policy, which observes the contact flags and the step phase.
+A reward term penalizes $\|\delta s\|$ while both feet are in contact, where it has no effect, and near the planned touchdown, so the policy learns to start each swing from zero and to bring $\delta s$ back to zero before the foot lands; the rate limit on $\gamma$ then makes $\delta s$ ramp in and out.
+A fade imposed by the decoder would guarantee continuity, but it would scale $\delta s$ with the phase, so the same output would mean a different shift at different times of the swing.
+Since $\delta s$ returns to zero before touchdown, the swing-foot shift does not move the footstep, which the gait generator plans and the next solve tracks.
 
 The shift is decoded only for the current node, with the Jacobians at the current set-point $\xb_i$ and the planned contacts $\mathcal C_i$ that $K'_i$ is computed with.
 Unlike $K'$, it is not needed over the horizon: $\delta x$ does not enter the backward pass, and the refiner outputs a new $\gamma_x$ at the next node from the measured state.
 
 The resulting torque $K'\delta x$ lies in the range of the gain.
-Since the Riccati policy is the first-order expansion of the MPC solution with respect to the state \cite{dantec2022firstorder}, this is the torque the MPC itself would command if the robot were displaced by $-\delta x$.
+Since the Riccati policy is the first-order expansion of the MPC solution with respect to the state \cite{dantec2022firstorder}, for a small shift this is the torque that an MPC with the refined weights would command if the robot were displaced by $-\delta x$.
 In other words, the refiner acts as a learned bias on the state the controller sees.
+It does not move the references that the MPC tracks: every solve starts again from the measured state and pulls it toward the references of the gait generator, so the robot settles where this pull balances the torque $K'\delta x$, not at $\xb\oplus\delta x$.
 The shift also enters a loop that is already closed.
 With $\zeta_i=x_i\ominus\xb_i$ and $A_i,B_i$ the dynamics Jacobians, the error evolves as
 \begin{equation}
 \zeta_{i+1}=(A_i-B_iK'_i)\,\zeta_i+B_iK'_i\,\delta x_i .
 \label{eq:cl}
 \end{equation}
-As long as the gains stabilize the local model, a bounded shift gives a bounded deviation.
+If the time-varying closed loop $A_i-B_iK'_i$ is exponentially stable, a bounded shift gives a bounded deviation.
 A gain only reacts to an error that already exists, so it cannot remove a steady error such as a CoM offset, but the shift can.
 The two parts are not independent, though.
 The torque from a shift is $K'\delta x$ and changes with the weights, so the refiner has to learn both together.
@@ -421,14 +428,14 @@ That evaluation dominates the cost of an iteration, and a full solver iteration 
 \emph{Bounded.} The decoder only reaches gains that are optimal for some cost on the model's dynamics.
 If those dynamics are wrong, the best gain may lie outside this family, and the refiner can only make the gains less aggressive.
 Some scales have no effect in some phases (the swing scales in double support), and the gains do not respond evenly to the weights, so each scale needs a calibrated bound.
-The scales and the shift are also rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and a new $\gamma_x$ every 25\,ms would otherwise make $\delta x$ a staircase.
+The scales and the shift are also rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and since $\delta x$ is held between two outputs, the rate limit keeps its steps small.
 Finally, the refiner cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
 
 \subsection{Learning for robustness}
 The refiner observes the state, a short history of tracking errors and torques, the contact flags and step phase, the velocity command and its own previous output.
 From the history it can recognize the situation, such as a heavier robot or a softer floor, and pick weights for it rather than learning one compromise setting.
 It is trained with PPO \cite{schulman2017ppo} in simulation under the uncertainties it should withstand: pushes, mass and CoM offsets, friction, contact stiffness and actuation delay.
-The reward combines velocity tracking and staying upright with penalties on the size and rate of $\gamma$, on joint torques, on a center of pressure (CoP) near the sole edge and on a tilted stance foot.
+The reward combines velocity tracking and staying upright with penalties on the size and rate of $\gamma$, on joint torques, on a center of pressure (CoP) near the sole edge, on a tilted stance foot and on a swing-foot shift $\delta s$ in double support or near touchdown.
 Since the MPC and the decoder are part of the environment, no derivative of the solver is needed.
 
 \section{Preliminary Results: Base Controller}
@@ -503,7 +510,7 @@ Higher torque weights on the stance leg and a higher foot weight during the swin
 
 \emph{Tracking the LIPM.} The CoM path of the LIPM fits the robot's sideways motion well but explains only 39\,\% of its forward CoM acceleration.
 Tracking it stiffly forces the robot away from its own dynamics: raising the forward and sideways CoM weights to 5000 made seven of eight random schedules fail.
-A set-point shift can absorb the systematic part of this mismatch without stiffening the tracking.
+A set-point shift can counter the systematic part of this mismatch with a steady bias, without stiffening the tracking.
 
 \emph{No single set of weights.} In earlier sweeps without step adaptation, every weight setting failed on about 20\,\% of fresh random schedules, and the same schedules failed under all of them.
 Weight tuning had reached its limit, which is the motivation for weights that change with the situation.
