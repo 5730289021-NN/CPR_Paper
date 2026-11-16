@@ -45,7 +45,7 @@ Then, one Riccati backward pass along the current trajectory turns the scaled we
 The gains that the refiner produces are therefore the optimal feedback of a local problem, and the set-point shift is designed to respect the contact constraints.
 This keeps exploration structured and small.
 For the base controller, we apply IS-MPC to provide the center of mass (CoM) and gait solution, and feed it as a reference to a lower-body MPC. The upper body is stabilized with a linear quadratic regulator (LQR).
-In simulation, the robot walks at up to 0.5\,m/s with a median whole-body solve time of 5.8\,ms within its 50\,ms period, does not fall on 28 random command schedules or 12 restarts, and recovers from 80 of 104 pushes spread over a full stride, on par with an open-source position-controlled IS-MPC walker (79 of 104) that walks only up to 0.28\,m/s.
+In simulation, the robot walks at up to 0.5\,m/s with a median whole-body solve time of 5.8\,ms within its 50\,ms period, does not fall on 28 random command schedules or 12 restarts, and recovers from 80 of 104 pushes spread over a full stride, against 70 to 79 for an open-source position-controlled IS-MPC walker that walks only up to 0.28\,m/s.
 The refiner itself has not been trained yet.
 \end{abstract}
 
@@ -464,12 +464,12 @@ Open-loop gait, FDDP, 10\,Hz & 1/28 & 0/12 & 28/48 & 50/104\\
 + measured ZMP support & 0/28 & 0/12 & 35/48 & 66/104\\
 + whole-body MPC at 20\,Hz (ours) & 0/28 & 0/12 & \textbf{37/48} & \textbf{80/104}\\
 \midrule
-ismpc\_walking \cite{mc_ismpcwalking} (position control) & 1/28 & 0/12 & 37/48$^{*}$ & 79/104\\
+ismpc\_walking \cite{mc_ismpcwalking} (position control) & 1/28 & 0/12 & 36/48 & 70/104\\
 \bottomrule
 \multicolumn{5}{@{}l}{Random: 40\,s schedules of random commands. Restarts: walking again after a}\\
 \multicolumn{5}{@{}l}{stop. Pushes: 30 and 40\,N\,s in four directions while walking at 0.25\,m/s, at six}\\
 \multicolumn{5}{@{}l}{instants of one step or at 13 instants 0.2\,s apart over a full stride. Recovered}\\
-\multicolumn{5}{@{}l}{pushes of ismpc\_walking include 10 in which it stops walking. $^{*}$Earlier run.}
+\multicolumn{5}{@{}l}{pushes of ismpc\_walking include 3 and 7 in which it stops walking.}
 \end{tabular}}
 \end{table}
 
@@ -482,7 +482,8 @@ Centering the ZMP limits on the measured feet adds 3 and 2.
 The one-step set covers only one stance phase of our 0.8\,s steps and turned out to favor it: over a full stride, the same controller recovers only 66 of 104 pushes.
 Running the whole-body MPC at 20\,Hz instead of 10\,Hz, with the same 0.5\,s horizon in 20 knots of 25\,ms, raises this to 80 of 104 (20 newly recovered, 6 lost) and the one-step set to 37 of 48, without any fall on the schedules or restarts.
 In a separate sweep, the gain came from the rate, not the knots: 25\,ms knots at 10\,Hz recovered only 53 of 104.
-The open-source ismpc\_walking controller \cite{mc_ismpcwalking}, run on the same scenarios with position control, recovers 79 of 104, ten of them by stopping, but walks only up to 0.28\,m/s.
+The open-source ismpc\_walking controller \cite{mc_ismpcwalking}, run on the same machine and scenarios with position control, recovers 36 of 48 and 70 of 104 pushes, ten of them by stopping, and walks only up to 0.28\,m/s.
+It runs in real time, so its results vary more between runs (79 of 104 in an earlier run).
 All forward and all but one backward pushes are recovered; 23 of our 24 failures come from sideways pushes.
 
 \subsection{What the refiner has to correct}
