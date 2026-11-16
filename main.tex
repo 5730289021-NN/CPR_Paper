@@ -56,8 +56,8 @@ humanoid robots, model predictive control, residual reinforcement learning, feed
 \section{Introduction}
 
 Model-based walking controllers for humanoid robots are commonly built in two layers.
-The upper layer plans with a reduced model such as the linear inverted pendulum (LIPM) \cite{kajita2001lipm,kajita2003preview}, centroidal dynamics \cite{orin2013centroidal}, or single rigid body dynamics \cite{dicarlo2018cheetah}.
-The lower layer is a whole-body controller that computes the joint torques, often implemented as a quadratic programming (QP)-based controller \cite{herzog2016momentum} or a model predictive controller (MPC) \cite{mastalli2020crocoddyl,dantec2022wbmpc}.
+The upper layer plans with a reduced model such as the linear inverted pendulum (LIPM) \cite{kajita2001lipm,kajita2003preview}, centroidal dynamics \cite{orin2013centroidal,dai2014centroidal}, or single rigid body dynamics \cite{dicarlo2018cheetah,winkler2018gait}.
+The lower layer is a whole-body controller that computes the joint torques, often implemented as a quadratic programming (QP)-based controller \cite{saab2013dynamic,herzog2016momentum} or a model predictive controller (MPC) \cite{mastalli2020crocoddyl,dantec2022wbmpc}.
 
 A reduced model is simple enough to analyze thoroughly, so a control law that keeps the robot walking without falling can be derived from it and computed fast.
 A control law based on the LIPM adjusts the zero-moment point (ZMP) to control the center of mass (CoM) position. Recent approaches rather steer the CoM by manipulating the divergent component of motion (DCM), because the CoM always follows the DCM.
@@ -170,7 +170,7 @@ If a system subject to the constraint \eqref{eq:stab} is given an external push,
 Integrating \eqref{eq:stab} piecewisely over the steps reveals that the DCM must lie in a sum of the support regions weighted by $\mu_k-\mu_{k+1}$, where $\mu_k=e^{-\omega_0 t_k}$.
 A slack $s$ measures how much this condition is violated.
 Since $\mu_k$ reaches $10^{-7}$ at the end of the preview, the problem is badly scaled.
-Inspired by the reference implementation \cite{ismpcwalking}, we further replace $\mu_k$ by its ratio $\nu_k=\mu_k/\hat\mu_k$ to the nominal value, which brings all variables to order one and effectively eliminates the small-number problem.
+Inspired by \cite{dallard2025adios}, we further replace $\mu_k$ by its ratio $\nu_k=\mu_k/\hat\mu_k$ to the nominal value, which brings all variables to order one and effectively eliminates the small-number problem.
 With $\hat p_f^i$ the nominal footsteps and $w_s,K_s$ weights, the cost is
 \begin{multline}
 J=\sum_k(\nu_k-1)^2+w_s\|s\|^2\\
@@ -178,7 +178,7 @@ J=\sum_k(\nu_k-1)^2+w_s\|s\|^2\\
 \frac{(\nu_i\hat\mu_i-\nu_{i-1}\hat\mu_{i-1})^2}{(\hat\mu_i-\hat\mu_{i-1})^2}
 \label{eq:cost}
 \end{multline}
-Instead of using block coordinate descent \cite{dallard2025adios}, we solve positions and times jointly as one nonlinear program with CasADi \cite{andersson2019casadi} as the solver interface and IPOPT \cite{wachter2006ipopt} as the solver backend.
+Instead of using block coordinate descent \cite{tseng2001bcd,dallard2025adios}, we solve positions and times jointly as one nonlinear program with CasADi \cite{andersson2019casadi} as the solver interface and IPOPT \cite{wachter2006ipopt} as the solver backend.
 
 The IS-MPC QP then uses the result as candidate footsteps to generate the motion primitives: the CoM and swing-foot trajectories.
 Its variables are the ZMP velocities $\dot p_j$, sampled every 50\,ms over a 2.5\,s control horizon, and the footstep positions $p_f^k$ in that horizon. It minimizes
