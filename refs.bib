@@ -1,0 +1,377 @@
+% ---------------------------------------------------------------- reduced models and gait generation
+@inproceedings{kajita2001lipm,
+  author = {S. Kajita and F. Kanehiro and K. Kaneko and K. Yokoi and H. Hirukawa},
+  title = {The {3D} linear inverted pendulum mode: A simple modeling for a biped walking pattern generation},
+  booktitle = {Proc. IEEE/RSJ Int. Conf. Intell. Robots Syst. (IROS)},
+  year = {2001}, pages = {239--246}
+}
+@inproceedings{kajita2003preview,
+  author = {S. Kajita and F. Kanehiro and K. Kaneko and K. Fujiwara and K. Harada and K. Yokoi and H. Hirukawa},
+  title = {Biped walking pattern generation by using preview control of zero-moment point},
+  booktitle = {Proc. IEEE Int. Conf. Robot. Autom. (ICRA)},
+  year = {2003}, pages = {1620--1626}
+}
+@article{vukobratovic2004zmp,
+  author = {M. Vukobratovi{\'c} and B. Borovac},
+  title = {Zero-moment point---Thirty five years of its life},
+  journal = {Int. J. Humanoid Robot.},
+  volume = {1}, number = {1}, pages = {157--173}, year = {2004}
+}
+@inproceedings{wieber2006mpc,
+  author = {P.-B. Wieber},
+  title = {Trajectory free linear model predictive control for stable walking in the presence of strong perturbations},
+  booktitle = {Proc. IEEE-RAS Int. Conf. Humanoid Robots (Humanoids)},
+  year = {2006}, pages = {137--142}
+}
+@article{herdt2010online,
+  author = {A. Herdt and H. Diedam and P.-B. Wieber and D. Dimitrov and K. Mombaur and M. Diehl},
+  title = {Online walking motion generation with automatic footstep placement},
+  journal = {Adv. Robot.},
+  volume = {24}, number = {5-6}, pages = {719--737}, year = {2010}
+}
+@inproceedings{pratt2006capture,
+  author = {J. Pratt and J. Carff and S. Drakunov and A. Goswami},
+  title = {Capture point: A step toward humanoid push recovery},
+  booktitle = {Proc. IEEE-RAS Int. Conf. Humanoid Robots (Humanoids)},
+  year = {2006}, pages = {200--207}
+}
+@inproceedings{takenaka2009dcm,
+  author = {T. Takenaka and T. Matsumoto and T. Yoshiike},
+  title = {Real time motion generation and control for biped robot---1st report: Walking gait pattern generation},
+  booktitle = {Proc. IEEE/RSJ Int. Conf. Intell. Robots Syst. (IROS)},
+  year = {2009}, pages = {1084--1091}
+}
+@inproceedings{englsberger2011capture,
+  author = {J. Englsberger and C. Ott and M. A. Roa and A. Albu-Sch{\"a}ffer and G. Hirzinger},
+  title = {Bipedal walking control based on capture point dynamics},
+  booktitle = {Proc. IEEE/RSJ Int. Conf. Intell. Robots Syst. (IROS)},
+  year = {2011}, pages = {4420--4427}
+}
+@article{koolen2012capturability,
+  author = {T. Koolen and T. de Boer and J. Rebula and A. Goswami and J. Pratt},
+  title = {Capturability-based analysis and control of legged locomotion, {P}art 1: Theory and application to three simple gait models},
+  journal = {Int. J. Robot. Res.},
+  volume = {31}, number = {9}, pages = {1094--1113}, year = {2012}
+}
+@inproceedings{lanari2014boundedness,
+  author = {L. Lanari and S. Hutchinson and L. Marchionni},
+  title = {Boundedness issues in planning of locomotion trajectories for biped robots},
+  booktitle = {Proc. IEEE-RAS Int. Conf. Humanoid Robots (Humanoids)},
+  year = {2014}, pages = {951--958}
+}
+@article{scianca2020ismpc,
+  author = {N. Scianca and D. De Simone and L. Lanari and G. Oriolo},
+  title = {{MPC} for humanoid gait generation: Stability and feasibility},
+  journal = {IEEE Trans. Robot.},
+  volume = {36}, number = {4}, pages = {1171--1188}, year = {2020}
+}
+@article{dallard2025adios,
+  author = {A. Dallard and M. Benallegue and N. Scianca and F. Kanehiro and A. Kheddar},
+  title = {Robust bipedal walking with closed-loop {MPC}: Adios stabilizers},
+  journal = {IEEE Trans. Robot.},
+  volume = {41}, pages = {4679--4698}, year = {2025}
+}
+@misc{ismpcwalking,
+  author = {{ISRI-AIST}},
+  title = {ismpc\_walking: mc\_rtc walking controller using {IS-MPC} gait generation},
+  howpublished = {\url{https://github.com/isri-aist/ismpc_walking}},
+  note = {Accessed: Nov. 2026}
+}
+@article{khadiv2020timing,
+  author = {M. Khadiv and A. Herzog and S. A. A. Moosavian and L. Righetti},
+  title = {Walking control based on step timing adaptation},
+  journal = {IEEE Trans. Robot.},
+  volume = {36}, number = {3}, pages = {629--643}, year = {2020}
+}
+@article{kaneko2019hrp5p,
+  author = {K. Kaneko and H. Kaminaga and T. Sakaguchi and S. Kajita and M. Morisawa and I. Kumagai and F. Kanehiro},
+  title = {Humanoid robot {HRP-5P}: An electrically actuated humanoid robot with high-power and wide-range joints},
+  journal = {IEEE Robot. Autom. Lett.},
+  volume = {4}, number = {2}, pages = {1431--1438}, year = {2019}
+}
+
+% ---------------------------------------------------------------- trajectory optimization and whole-body MPC
+@article{mayne1966ddp,
+  author = {D. Mayne},
+  title = {A second-order gradient method for determining optimal trajectories of non-linear discrete-time systems},
+  journal = {Int. J. Control},
+  volume = {3}, number = {1}, pages = {85--95}, year = {1966}
+}
+@inproceedings{li2004ilqr,
+  author = {W. Li and E. Todorov},
+  title = {Iterative linear quadratic regulator design for nonlinear biological movement systems},
+  booktitle = {Proc. Int. Conf. Informatics in Control, Autom. Robot. (ICINCO)},
+  year = {2004}, pages = {222--229}
+}
+@inproceedings{tassa2012synthesis,
+  author = {Y. Tassa and T. Erez and E. Todorov},
+  title = {Synthesis and stabilization of complex behaviors through online trajectory optimization},
+  booktitle = {Proc. IEEE/RSJ Int. Conf. Intell. Robots Syst. (IROS)},
+  year = {2012}, pages = {4906--4913}
+}
+@inproceedings{mastalli2020crocoddyl,
+  author = {C. Mastalli and R. Budhiraja and W. Merkt and G. Saurel and B. Hammoud and M. Naveau and J. Carpentier and L. Righetti and S. Vijayakumar and N. Mansard},
+  title = {Crocoddyl: An efficient and versatile framework for multi-contact optimal control},
+  booktitle = {Proc. IEEE Int. Conf. Robot. Autom. (ICRA)},
+  year = {2020}, pages = {2536--2542}
+}
+@inproceedings{carpentier2019pinocchio,
+  author = {J. Carpentier and G. Saurel and G. Buondonno and J. Mirabel and F. Lamiraux and O. Stasse and N. Mansard},
+  title = {The {P}inocchio {C++} library: A fast and flexible implementation of rigid body dynamics algorithms and their analytical derivatives},
+  booktitle = {Proc. IEEE/SICE Int. Symp. Syst. Integr. (SII)},
+  year = {2019}, pages = {614--619}
+}
+@inproceedings{dantec2022wbmpc,
+  author = {E. Dantec and M. Naveau and P. Fernbach and N. Villa and G. Saurel and O. Stasse and M. Ta{\"i}x and N. Mansard},
+  title = {Whole-body model predictive control for biped locomotion on a torque-controlled humanoid robot},
+  booktitle = {Proc. IEEE-RAS Int. Conf. Humanoid Robots (Humanoids)},
+  year = {2022}, pages = {638--644}
+}
+@article{dantec2022firstorder,
+  author = {E. Dantec and M. Ta{\"i}x and N. Mansard},
+  title = {First order approximation of model predictive control solutions for high frequency feedback},
+  journal = {IEEE Robot. Autom. Lett.},
+  volume = {7}, year = {2022}
+}
+@inproceedings{grandia2019feedback,
+  author = {R. Grandia and F. Farshidian and R. Ranftl and M. Hutter},
+  title = {Feedback {MPC} for torque-controlled legged robots},
+  booktitle = {Proc. IEEE/RSJ Int. Conf. Intell. Robots Syst. (IROS)},
+  year = {2019}, pages = {4730--4737}
+}
+@inproceedings{todorov2012mujoco,
+  author = {E. Todorov and T. Erez and Y. Tassa},
+  title = {{MuJoCo}: A physics engine for model-based control},
+  booktitle = {Proc. IEEE/RSJ Int. Conf. Intell. Robots Syst. (IROS)},
+  year = {2012}, pages = {5026--5033}
+}
+@article{andersson2019casadi,
+  author = {J. A. E. Andersson and J. Gillis and G. Horn and J. B. Rawlings and M. Diehl},
+  title = {{CasADi}: A software framework for nonlinear optimization and optimal control},
+  journal = {Math. Program. Comput.},
+  volume = {11}, number = {1}, pages = {1--36}, year = {2019}
+}
+@article{wachter2006ipopt,
+  author = {A. W{\"a}chter and L. T. Biegler},
+  title = {On the implementation of an interior-point filter line-search algorithm for large-scale nonlinear programming},
+  journal = {Math. Program.},
+  volume = {106}, number = {1}, pages = {25--57}, year = {2006}
+}
+@article{stellato2020osqp,
+  author = {B. Stellato and G. Banjac and P. Goulart and A. Bemporad and S. Boyd},
+  title = {{OSQP}: An operator splitting solver for quadratic programs},
+  journal = {Math. Program. Comput.},
+  volume = {12}, number = {4}, pages = {637--672}, year = {2020}
+}
+@article{safonov1977margins,
+  author = {M. Safonov and M. Athans},
+  title = {Gain and phase margin for multiloop {LQG} regulators},
+  journal = {IEEE Trans. Autom. Control},
+  volume = {22}, number = {2}, pages = {173--179}, year = {1977}
+}
+
+% ---------------------------------------------------------------- reinforcement learning for locomotion
+@article{hwangbo2019learning,
+  author = {J. Hwangbo and J. Lee and A. Dosovitskiy and D. Bellicoso and V. Tsounis and V. Koltun and M. Hutter},
+  title = {Learning agile and dynamic motor skills for legged robots},
+  journal = {Sci. Robot.},
+  volume = {4}, number = {26}, pages = {eaau5872}, year = {2019}
+}
+@article{lee2020learning,
+  author = {J. Lee and J. Hwangbo and L. Wellhausen and V. Koltun and M. Hutter},
+  title = {Learning quadrupedal locomotion over challenging terrain},
+  journal = {Sci. Robot.},
+  volume = {5}, number = {47}, pages = {eabc5986}, year = {2020}
+}
+@inproceedings{rudin2022minutes,
+  author = {N. Rudin and D. Hoeller and P. Reist and M. Hutter},
+  title = {Learning to walk in minutes using massively parallel deep reinforcement learning},
+  booktitle = {Proc. Conf. Robot Learn. (CoRL)},
+  series = {PMLR}, volume = {164}, year = {2022}, pages = {91--100}
+}
+@article{radosavovic2024humanoid,
+  author = {I. Radosavovic and T. Xiao and B. Zhang and T. Darrell and J. Malik and K. Sreenath},
+  title = {Real-world humanoid locomotion with reinforcement learning},
+  journal = {Sci. Robot.},
+  volume = {9}, number = {89}, pages = {eadi9579}, year = {2024}
+}
+@misc{schulman2017ppo,
+  author = {J. Schulman and F. Wolski and P. Dhariwal and A. Radford and O. Klimov},
+  title = {Proximal policy optimization algorithms},
+  howpublished = {arXiv:1707.06347}, year = {2017}
+}
+@misc{zakka2026mjlab,
+  author = {K. Zakka and Q. Liao and B. Yi and L. {Le Lay} and K. Sreenath and P. Abbeel},
+  title = {mjlab: A lightweight framework for {GPU}-accelerated robot learning},
+  howpublished = {arXiv:2601.22074}, year = {2026}
+}
+
+% ---------------------------------------------------------------- combining model-based control and RL
+@misc{silver2018residual,
+  author = {T. Silver and K. Allen and J. Tenenbaum and L. Kaelbling},
+  title = {Residual policy learning},
+  howpublished = {arXiv:1812.06298}, year = {2018}
+}
+@inproceedings{johannink2019residual,
+  author = {T. Johannink and S. Bahl and A. Nair and J. Luo and A. Kumar and M. Loskyll and J. A. Ojea and E. Solowjow and S. Levine},
+  title = {Residual reinforcement learning for robot control},
+  booktitle = {Proc. IEEE Int. Conf. Robot. Autom. (ICRA)},
+  year = {2019}, pages = {6023--6029}
+}
+@article{gangapurwala2022rloc,
+  author = {S. Gangapurwala and M. Geisert and R. Orsolino and M. Fallon and I. Havoutis},
+  title = {{RLOC}: Terrain-aware legged locomotion using reinforcement learning and optimal control},
+  journal = {IEEE Trans. Robot.},
+  volume = {38}, number = {5}, pages = {2908--2927}, year = {2022}
+}
+@article{kang2023rlmodel,
+  author = {D. Kang and J. Cheng and M. Zamora and F. Zargarbashi and S. Coros},
+  title = {{RL} + model-based control: Using on-demand optimal control to learn versatile legged locomotion},
+  journal = {IEEE Robot. Autom. Lett.},
+  volume = {8}, number = {10}, pages = {6619--6626}, year = {2023}
+}
+@article{jenelten2024dtc,
+  author = {F. Jenelten and J. He and F. Farshidian and M. Hutter},
+  title = {{DTC}: Deep tracking control},
+  journal = {Sci. Robot.},
+  volume = {9}, number = {86}, pages = {eadh5401}, year = {2024}
+}
+@misc{jeon2025residualmpc,
+  author = {S. H. Jeon and H. J. Lee and S. Hong and S. Kim},
+  title = {Residual {MPC}: Blending reinforcement learning with {GPU}-parallelized model predictive control},
+  howpublished = {arXiv:2510.12717}, year = {2025}
+}
+@misc{cheng2025rambo,
+  author = {J. Cheng and D. Kang and G. Fadini and G. Shi and S. Coros},
+  title = {{RAMBO}: {RL}-augmented model-based whole-body control for loco-manipulation},
+  howpublished = {arXiv:2504.06662}, year = {2025}
+}
+@article{carius2020mpcnet,
+  author = {J. Carius and F. Farshidian and M. Hutter},
+  title = {{MPC-Net}: A first principles guided policy search},
+  journal = {IEEE Robot. Autom. Lett.},
+  volume = {5}, number = {2}, pages = {2897--2904}, year = {2020}
+}
+@inproceedings{reske2021imitation,
+  author = {A. Reske and J. Carius and Y. Ma and F. Farshidian and M. Hutter},
+  title = {Imitation learning from {MPC} for quadrupedal multi-gait control},
+  booktitle = {Proc. IEEE Int. Conf. Robot. Autom. (ICRA)},
+  year = {2021}, pages = {5014--5020}
+}
+@inproceedings{zhao2023act,
+  author = {T. Z. Zhao and V. Kumar and S. Levine and C. Finn},
+  title = {Learning fine-grained bimanual manipulation with low-cost hardware},
+  booktitle = {Proc. Robot.: Sci. Syst. (RSS)},
+  year = {2023}
+}
+@inproceedings{chi2023diffusion,
+  author = {C. Chi and S. Feng and Y. Du and Z. Xu and E. Cousineau and B. Burchfiel and S. Song},
+  title = {Diffusion policy: Visuomotor policy learning via action diffusion},
+  booktitle = {Proc. Robot.: Sci. Syst. (RSS)},
+  year = {2023}
+}
+@article{buchli2011variable,
+  author = {J. Buchli and F. Stulp and E. Theodorou and S. Schaal},
+  title = {Learning variable impedance control},
+  journal = {Int. J. Robot. Res.},
+  volume = {30}, number = {7}, pages = {820--833}, year = {2011}
+}
+@inproceedings{marco2016lqr,
+  author = {A. Marco and P. Hennig and J. Bohg and S. Schaal and S. Trimpe},
+  title = {Automatic {LQR} tuning based on {G}aussian process global optimization},
+  booktitle = {Proc. IEEE Int. Conf. Robot. Autom. (ICRA)},
+  year = {2016}, pages = {270--277}
+}
+
+% ---------------------------------------------------------------- safety
+@article{wabersich2021psf,
+  author = {K. P. Wabersich and M. N. Zeilinger},
+  title = {A predictive safety filter for learning-based control of constrained nonlinear dynamical systems},
+  journal = {Automatica},
+  volume = {129}, pages = {109597}, year = {2021}
+}
+@article{agrawal2024gatekeeper,
+  author = {D. R. Agrawal and R. Chen and D. Panagou},
+  title = {gatekeeper: Online safety verification and control for nonlinear systems in dynamic environments},
+  journal = {IEEE Trans. Robot.},
+  volume = {40}, year = {2024}
+}
+@inproceedings{alshiekh2018shielding,
+  author = {M. Alshiekh and R. Bloem and R. Ehlers and B. K{\"o}nighofer and S. Niekum and U. Topcu},
+  title = {Safe reinforcement learning via shielding},
+  booktitle = {Proc. AAAI Conf. Artif. Intell.},
+  year = {2018}
+}
+@inproceedings{ames2019cbf,
+  author = {A. D. Ames and S. Coogan and M. Egerstedt and G. Notomista and K. Sreenath and P. Tabuada},
+  title = {Control barrier functions: Theory and applications},
+  booktitle = {Proc. Eur. Control Conf. (ECC)},
+  year = {2019}, pages = {3420--3431}
+}
+@article{brunke2022safe,
+  author = {L. Brunke and M. Greeff and A. W. Hall and Z. Yuan and S. Zhou and J. Panerati and A. P. Schoellig},
+  title = {Safe learning in robotics: From learning-based control to safe reinforcement learning},
+  journal = {Annu. Rev. Control Robot. Auton. Syst.},
+  volume = {5}, pages = {411--444}, year = {2022}
+}
+@article{hewing2020lbmpc,
+  author = {L. Hewing and K. P. Wabersich and M. Menner and M. N. Zeilinger},
+  title = {Learning-based model predictive control: Toward safe learning in control},
+  journal = {Annu. Rev. Control Robot. Auton. Syst.},
+  volume = {3}, pages = {269--296}, year = {2020}
+}
+@misc{nguyen2024gameplay,
+  author = {D. P. Nguyen and K.-C. Hsu and W. Yu and J. Tan and J. F. Fisac},
+  title = {Gameplay filters: Robust zero-shot safety through adversarial imagination},
+  howpublished = {arXiv:2405.00846}, year = {2024}
+}
+
+% ---------------------------------------------------------------- learning inside the optimization problem
+@article{marchetti2009modifier,
+  author = {A. Marchetti and B. Chachuat and D. Bonvin},
+  title = {Modifier-adaptation methodology for real-time optimization},
+  journal = {Ind. Eng. Chem. Res.},
+  volume = {48}, number = {13}, pages = {6022--6033}, year = {2009}
+}
+@book{fiacco1983sensitivity,
+  author = {A. V. Fiacco},
+  title = {Introduction to Sensitivity and Stability Analysis in Nonlinear Programming},
+  publisher = {Academic Press}, address = {New York, NY, USA}, year = {1983}
+}
+@book{nocedal2006numerical,
+  author = {J. Nocedal and S. J. Wright},
+  title = {Numerical Optimization},
+  edition = {2nd},
+  publisher = {Springer}, address = {New York, NY, USA}, year = {2006}
+}
+@inproceedings{amos2017optnet,
+  author = {B. Amos and J. Z. Kolter},
+  title = {{OptNet}: Differentiable optimization as a layer in neural networks},
+  booktitle = {Proc. Int. Conf. Mach. Learn. (ICML)},
+  year = {2017}, pages = {136--145}
+}
+@inproceedings{amos2018diffmpc,
+  author = {B. Amos and I. D. J. Rodriguez and J. Sacks and B. Boots and J. Z. Kolter},
+  title = {Differentiable {MPC} for end-to-end planning and control},
+  booktitle = {Adv. Neural Inf. Process. Syst. (NeurIPS)},
+  year = {2018}
+}
+@article{gros2020nmpcrl,
+  author = {S. Gros and M. Zanon},
+  title = {Data-driven economic {NMPC} using reinforcement learning},
+  journal = {IEEE Trans. Autom. Control},
+  volume = {65}, number = {2}, pages = {636--648}, year = {2020}
+}
+@inproceedings{romero2024acmpc,
+  author = {A. Romero and Y. Song and D. Scaramuzza},
+  title = {Actor-critic model predictive control},
+  booktitle = {Proc. IEEE Int. Conf. Robot. Autom. (ICRA)},
+  year = {2024}
+}
+
+@article{song2022policysearch,
+  author = {Y. Song and D. Scaramuzza},
+  title = {Policy search for model predictive control with application to agile drone flight},
+  journal = {IEEE Trans. Robot.},
+  volume = {38}, year = {2022}
+}
