@@ -45,7 +45,7 @@ Then, one Riccati backward pass along the current trajectory turns the scaled we
 The gains that the refiner produces are therefore the optimal feedback of a local problem, and the set-point shift is designed to respect the contact constraints.
 This keeps exploration structured and small.
 For the base controller, we apply IS-MPC to provide the center of mass (CoM) and gait solution, and feed it as a reference to a lower-body MPC. The upper body is stabilized with a linear quadratic regulator (LQR).
-In simulation, the robot walks at up to 0.5\,m/s with a median whole-body solve time of 10.5\,ms within its 50\,ms period, does not fall on 28 random command schedules or 12 restarts, and recovers from 80 of 104 pushes spread over a full stride, on par with an open-source position-controlled IS-MPC walker (79 of 104) that walks only up to 0.28\,m/s.
+In simulation, the robot walks at up to 0.5\,m/s with a median whole-body solve time of 5.8\,ms within its 50\,ms period, does not fall on 28 random command schedules or 12 restarts, and recovers from 80 of 104 pushes spread over a full stride, on par with an open-source position-controlled IS-MPC walker (79 of 104) that walks only up to 0.28\,m/s.
 The refiner itself has not been trained yet.
 \end{abstract}
 
@@ -440,15 +440,16 @@ It sets the baseline and shows what the refiner will have to correct.
 \subsection{Setup}
 The controller is implemented in C++ as an mc\_rtc plugin and runs on the HRP-5P model (104\,kg) in mc\_mujoco, a MuJoCo \cite{todorov2012mujoco} interface, with a 1\,ms step and torque control.
 Both solvers run inside the control step, which is acceptable in simulation but not yet real time.
-All results come from sweeps on self-hosted x64 machines that run several cases in parallel, and timings are the wall-clock solve times in those runs.
+The robustness results come from sweeps on self-hosted x64 machines that run several cases in parallel; the walking results and timings come from a run of one case at a time on a laptop (Intel Core Ultra 9 185H).
 On one machine a case is deterministic, but whole sweeps have differed by one or two pushes between repeats, which we treat as noise.
 A run fails when a joint stays at its torque limit for more than 50\,ms, which triggers a safety stop, or when the base drops below 0.6\,m.
 A push is a 0.1\,s force on the base, given as its impulse.
 
 \subsection{Walking}
-Straight walking from 0.1 to 0.5\,m/s reaches 99 to 102\,\% of the commanded speed.
-Turning in place up to 0.3\,rad/s, walking at 0.5\,m/s while turning at 0.3\,rad/s and walking backward all run without a stop or a fall.
-Over the 144 cases of Table~\ref{tab:robust}, the median solve takes 10.5\,ms for the whole-body OCP (median of two iterations) of its 50\,ms period, 2.8\,ms for an IS-MPC tick and 10.2\,ms for a pre-optimization (14 IPOPT iterations).
+Straight walking reaches 101 to 104\,\% of the commanded speed from 0.4 to 0.5\,m/s, but only 90\,\% from 0.1 to 0.3\,m/s.
+Turning in place up to 0.3\,rad/s, walking at 0.5\,m/s while turning at 0.3\,rad/s and walking backward all run without a stop or a fall, as do all 16 cases of this test.
+At 0.5\,m/s, the median whole-body solve takes 5.8\,ms (three iterations) of its 50\,ms period, an IS-MPC tick 1.5\,ms and a pre-optimization 8.7\,ms.
+Warm-started solves stop at ten iterations; only the cold first solve takes longer (up to 85\,ms).
 
 \begin{table}[t]
 \caption{Failures and push recovery of the base controller}
