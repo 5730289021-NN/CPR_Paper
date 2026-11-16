@@ -389,6 +389,8 @@ When a foot lifts off or touches down, its row in \eqref{eq:footshift} switches,
 Rather than imposing a fade, we rely on the policy, which observes the contact flags and the step phase.
 A reward term penalizes $\|\delta s\|$ while both feet are in contact, where it has no effect, and near the planned touchdown, so the policy learns to start each swing from zero and to bring $\delta s$ back to zero before the foot lands; the rate limit on $\gamma$ then makes $\delta s$ ramp in and out.
 A fade imposed by the decoder would guarantee continuity, but it would scale $\delta s$ with the phase, so the same output would mean a different shift at different times of the swing.
+The policy alone cannot guarantee continuity, however: step timing adaptation can move a touchdown earlier at short notice, contacts switch on the plan's clock rather than the sensed contact, and exploration noise keeps $\delta s$ from being exactly zero.
+As a safety net, the decoded shift is also slew-rate limited at the 1\,kHz control rate: each coordinate of $\delta x$ changes by at most a fixed amount per control step, so a jump at a contact switch becomes a ramp of a few tens of milliseconds whatever the policy outputs.
 Since $\delta s$ returns to zero before touchdown, the swing-foot shift does not move the footstep, which the gait generator plans and the next solve tracks.
 
 The shift is decoded only for the current node, with the Jacobians at the current set-point $\xb_i$ and the planned contacts $\mathcal C_i$ that $K'_i$ is computed with.
@@ -414,7 +416,7 @@ The torque from a shift is $K'\delta x$ and changes with the weights, so the ref
 The refiner can choose a poor cost, but it cannot produce a gain with flipped signs or a broken coupling between joints.
 This is not a safety guarantee, however.
 The gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
-What keeps exploration safe are the bounds and rate limits on $\gamma$.
+What keeps exploration safe are the bounds and rate limits on $\gamma$ and the slew-rate limit on $\delta x$.
 A safety check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl} could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds.
 $K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics, which is required for using such gains on hardware \cite{grandia2019feedback}.
 
@@ -428,7 +430,7 @@ That evaluation dominates the cost of an iteration, and a full solver iteration 
 \emph{Bounded.} The decoder only reaches gains that are optimal for some cost on the model's dynamics.
 If those dynamics are wrong, the best gain may lie outside this family, and the refiner can only make the gains less aggressive.
 Some scales have no effect in some phases (the swing scales in double support), and the gains do not respond evenly to the weights, so each scale needs a calibrated bound.
-The scales and the shift are also rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and since $\delta x$ is held between two outputs, the rate limit keeps its steps small.
+The scales and the shift are also rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and since $\delta x$ is held between two outputs, the rate limit keeps its steps small and the slew-rate limit on $\delta x$ turns any remaining step into a ramp.
 Finally, the refiner cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
 
 \subsection{Learning for robustness}
