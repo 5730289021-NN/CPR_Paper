@@ -364,7 +364,7 @@ $\gamma_x$ & base and swing-foot pose shifts; leg joints follow & 12\\
 \end{table}
 
 \subsection{Set-point shift}
-The refiner outputs a shift $\delta b$ of the base pose and a shift $\delta s$ of the swing-foot pose, $\gamma_x=(\delta b,\delta s)$, both as 6-vectors in the tangent space.
+The refiner outputs a shift $\delta b$ of the base pose and a shift $\delta p_f$ of the swing-foot pose, $\gamma_x=(\delta b,\delta p_f)$, both as 6-vectors in the tangent space; a foot in contact keeps $\delta p_f=0$.
 The decoder turns them into a shift of the leg joints.
 The set-point shift has the same layout as the state error,
 \begin{equation}
@@ -379,22 +379,17 @@ To first order, a base shift $\delta b$ and a joint change $\delta q_{J,f}$ of l
 \label{eq:footmotion}
 \end{equation}
 where $J_{f,B}$ and $J_{f,J}$ are the columns of the Jacobian of foot $f$ for the base and for the six joints of its leg.
-A foot in contact must not move, and a swinging foot moves by $\delta s$:
-\begin{equation}
-\delta p_f=\begin{cases}0 & f\ \text{in contact},\\ \delta s & f\ \text{swinging}.\end{cases}
-\label{eq:footshift}
-\end{equation}
 Away from a stretched knee, the $6\times6$ matrix $J_{f,J}$ is invertible, and solving \eqref{eq:footmotion} gives one rule for both legs,
 \begin{equation}
 \delta q_{J,f}=J_{f,J}^{-1}\big(\delta p_f-J_{f,B}\,\delta b\big).
 \label{eq:legcompletion}
 \end{equation}
-A base shift therefore bends the legs without moving any foot, and $\delta s$ moves only the swing foot.
+A base shift therefore bends the legs without moving a stance foot.
 Together they span every set-point change that keeps the stance feet in place: of the 18 position coordinates of the base and legs, each stance foot removes six, leaving 12 in single support and the six of $\delta b$ in double support.
 Unlike a projection onto the null space of the contact Jacobian, this reproduces the requested base shift exactly.
 
-At liftoff and touchdown, the row of a foot in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\delta s$ unless $\delta s=0$.
-We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\delta s\|$ in double support and near touchdown.
+At liftoff and touchdown, a foot switches between stance and swing, and the joint set-point jumps by $J_{f,J}^{-1}\delta p_f$ unless $\delta p_f=0$.
+We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\delta p_f\|$ in double support and near touchdown.
 
 Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K'\delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\delta x$: a learned bias on the state the controller sees.
 It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\delta x$.
@@ -427,7 +422,7 @@ The refiner also cannot change the footsteps or the contact schedule, so disturb
 The refiner observes the state, a short history of tracking errors and torques, the contact flags and step phase, the velocity command and its own previous output.
 From the history it can recognize the situation, such as a heavier robot or a softer floor, and pick weights for it rather than learning one compromise setting.
 It is expected to be trained with PPO \cite{schulman2017ppo} in simulation under the uncertainties it should withstand: pushes, mass and CoM offsets, friction, contact stiffness, uneven ground and actuation delay.
-The reward combines velocity tracking and staying upright with penalties on the size and rate of $\gamma$, on joint torques, on a center of pressure (CoP) near the sole edge, on a tilted stance foot and on a swing-foot shift $\delta s$ in double support or near touchdown.
+The reward combines velocity tracking and staying upright with penalties on the size and rate of $\gamma$, on joint torques, on a center of pressure (CoP) near the sole edge, on a tilted stance foot and on $\delta p_f$ in double support or near touchdown.
 Since the MPC and the decoder are part of the environment, no derivative of the solver is needed.
 
 \section{Preliminary Results: Base Controller}
