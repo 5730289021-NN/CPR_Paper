@@ -496,7 +496,7 @@ Higher torque weights on the leg in stance or a higher foot weight during the sw
 \emph{Model mismatch ($\gamma_x$).} On the random schedules, the measured CoM stays about 9\,mm (RMS per axis) from the LIPM plan, and the measured ZMP about 26\,mm from the planned one.
 A gain only reacts to such a persistent error; a set-point shift can counter its systematic part with a steady bias, without stiffening the tracking.
 
-\emph{Outside its reach.} Of the 24 full-stride pushes that the final controller does not recover, 22 fail 0.8\,s or more after the push, after a median of two recovery steps.
+\emph{Outside its reach.} The final controller fails 24 of the full-stride pushes, and 22 of these failures come 0.8\,s or more after the push, after a median of two recovery steps.
 Only one of these 22 ever places a foot beyond the measured DCM, while 56 of the 80 recovered pushes do.
 They need a longer or earlier step, which is the job of the gait generator.
 
