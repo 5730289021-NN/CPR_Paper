@@ -214,7 +214,7 @@ where $\hat x$ is the measured state, $\mathcal C_i$ is the set of feet in conta
 Each stance foot is held by a 6D contact constraint, stabilized toward its reference placement via Baumgarte stabilization \cite{baumgarte1972stabilization} ($e_f$ is the placement error, $k_p=10$, $k_d=2$).
 The running cost is
 \begin{align}
-\ell(x,u)&=\tfrac12\Big(w_C\,\|c(q)-c^{\mathrm{ref}}\|^2_{W_C}\nonumber\\
+\ell(x,u)&=\tfrac12\Big(w_G\,\|c(q)-c^{\mathrm{ref}}\|^2_{W_G}\nonumber\\
 &\quad+w_F\textstyle\sum_{f}\|\log(M_f^{\mathrm{ref}\,-1}M_f(q))\|^2_{W_F}\nonumber\\
 &\quad+w_B\,\|\log(R_B^{0\,\top}R_B(q))\|^2+w_J\,\|q_J-q_J^0\|^2_{W_J}\nonumber\\
 &\quad+w_V\,\|v\|^2_{W_V}+\textstyle\sum_{g=1}^{6}w_{\tau_g}\|u_g\|^2\nonumber\\
@@ -223,13 +223,13 @@ The running cost is
 \end{align}
 and the terminal cost keeps the CoM, foot and state terms without the torque and wrench-cone terms,
 \begin{align}
-\ell_N(x)&=\tfrac12\Big(w_C^N\,\|c(q)-c^{\mathrm{ref}}\|^2_{W_C}\nonumber\\
+\ell_N(x)&=\tfrac12\Big(w_G^N\,\|c(q)-c^{\mathrm{ref}}\|^2_{W_G}\nonumber\\
 &\quad+w_F\textstyle\sum_{f}\|\log(M_f^{\mathrm{ref}\,-1}M_f(q))\|^2_{W_F}\nonumber\\
 &\quad+w_B\,\|\log(R_B^{0\,\top}R_B(q))\|^2+w_J\,\|q_J-q_J^0\|^2_{W_J}\nonumber\\
 &\quad+w_V\,\|v\|^2_{W_V}\Big),
 \label{eq:costterm}
 \end{align}
-with a larger CoM weight $w_C^N$.
+with a larger CoM weight $w_G^N$.
 The terms penalize the CoM $c$, the placements $M_f\in SE(3)$ of the two feet, the base orientation $R_B$, the joint angles $q_J$, the velocities and the torques $u_g$ of six joint groups (hip (3 joints), knee (1) and ankle (2) of the left and right legs).
 The references $c^{\mathrm{ref}}$ and $M_f^{\mathrm{ref}}$ come from the gait generator, and $R_B^0,q_J^0$ are the standing posture.
 The last term of \eqref{eq:costwb} tries to keep each contact wrench inside its cone $A_f\lambda_f\le0$ (unilateral force, friction coefficient 1 and a CoP within a $0.18\times0.09$\,m rectangle, about 50\,\% of the area of the actual sole).
@@ -256,7 +256,7 @@ $K_i\in\R^{12\times36}$ maps the state error, made of the errors of the base pos
 \toprule
 Term & Weight & Per-component weight\\
 \midrule
-CoM & $w_C=1$, $w_C^N=5$ & $W_C=\mathrm{diag}(350,350,10^4)$\\
+CoM & $w_G=1$, $w_G^N=5$ & $W_G=\mathrm{diag}(350,350,10^4)$\\
 Feet & $w_F=40$ & $W_F=\mathrm{diag}(50,50,200,50,50,50)$\\
 Base orientation & $w_B=200$ & --\\
 Joint posture & $w_J=1$ & $W_J$: 100 on the hip yaw, 1 otherwise\\
@@ -320,7 +320,7 @@ The decoder uses a copy $\ell'$ of the cost with scaled weights to recompute the
 Each scale multiplies one weight of \eqref{eq:costwb}:
 \begin{align}
 w'_j&=w_j\,e^{\gamma_j},\qquad j\in\{B,J,V,F,\tau_1,\dots,\tau_6\},\label{eq:scale}\\
-w'_C&=w_C,\qquad w'_W=w_W.\label{eq:scaleG}
+w'_G&=w_G,\qquad w'_W=w_W.\label{eq:scaleG}
 \end{align}
 Here $\gamma_K=(\gamma_B,\gamma_J,\gamma_V,\gamma_F,\gamma_{\tau_1},\dots,\gamma_{\tau_6})$ contains four tracking scales (base orientation, joint posture, velocity and foot terms) and six torque scales (one per joint group).
 Since multiplying all weights by a common factor only scales every $Q$ and $V$ in \eqref{eq:backward} and leaves $K'$ unchanged, we fix the CoM weight as the reference. As the CoM reference is the output of the LIPM model, we prefer the CoM to remain the main objective. Aside from that, we keep the cone penalty as it is.
