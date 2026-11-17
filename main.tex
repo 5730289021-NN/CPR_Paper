@@ -230,7 +230,7 @@ and the terminal cost keeps the CoM, foot and state terms without the torque and
 \label{eq:costterm}
 \end{align}
 with a larger CoM weight $w_G^N$.
-The terms penalize the CoM $c$, the placements $M_f\in SE(3)$ of the two feet, the base orientation $R_B$, the joint angles $q_J$, the velocities and the torques $u_g$ of six joint groups (hip, knee and ankle of the stance and the swing leg).
+The terms penalize the CoM $c$, the placements $M_f\in SE(3)$ of the two feet, the base orientation $R_B$, the joint angles $q_J$, the velocities and the torques $u_g$ of six joint groups (hip (3 joints), knee (1) and ankle (2) of the left and right legs).
 The references $c^{\mathrm{ref}}$ and $M_f^{\mathrm{ref}}$ come from the gait generator, and $R_B^0,q_J^0$ are the standing posture.
 The last term of \eqref{eq:costwb} tries to keep each contact wrench inside its cone $A_f\lambda_f\le0$ (unilateral force, friction coefficient 1 and a CoP within a $0.18\times0.09$\,m sole).
 The solver handles only box constraints, so the cone enters as a quadratic penalty.
@@ -355,7 +355,7 @@ In this design, only the gains are replaced, so the decoded gains change the rea
 Part & Content & Size\\
 \midrule
 $\gamma_w$, tracking & base orientation, posture, velocities, feet (CoM fixed) & 4\\
-$\gamma_w$, torque & hip, knee, ankle; stance and swing leg & 6\\
+$\gamma_w$, torque & hip, knee, ankle; left and right leg & 6\\
 $\gamma_x$ & base and swing-foot pose shifts; leg joints follow & 12\\
 \midrule
 \multicolumn{2}{@{}l}{Total, decoded into $K'\in\R^{12\times36}$ per node and $\delta x\in\R^{36}$} & 22\\
@@ -426,7 +426,7 @@ That evaluation dominates the cost of an iteration, and a full solver iteration 
 
 \emph{Bounded.} The decoder only reaches gains that are optimal for some cost on the model's dynamics.
 If those dynamics are wrong, the best gain may lie outside this family, and the refiner can only make the gains less aggressive.
-Some scales have no effect in some phases (the swing scales in double support), and the gains do not respond evenly to the weights, so each scale needs a calibrated bound.
+Some outputs have no effect in some phases (the swing-foot shift in double support), and the gains do not respond evenly to the weights, so each scale needs a calibrated bound.
 The scales and the shift are also rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and since $\delta x$ is held between two outputs, the rate limit keeps its steps small and the slew-rate limit on $\delta x$ turns any remaining step into a ramp.
 Finally, the refiner cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
 
@@ -506,7 +506,7 @@ Over the full stride, 25 of the 38 failures at 10\,Hz happened in the execution 
 The wrench cone is only a penalty in the OCP, and the gains are tuned for normal walking.
 Fixed caps on the ankle torques in the OCP did not help (three to seven pushes fewer).
 Running the MPC at 20\,Hz leaves only 1 of 24 failures of this kind: a feedback policy refreshed twice as often recovers 14 more pushes, which shows how much depends on the policy between two solves.
-Higher torque weights on the stance leg and a higher foot weight during the swing are the kind of change the refiner can make in that situation, without the cost of solving more often.
+Higher torque weights on the leg in stance and a higher foot weight during the swing are the kind of change the refiner can make in that situation, without the cost of solving more often.
 
 \emph{Tracking the LIPM.} The CoM path of the LIPM fits the robot's sideways motion well but explains only 39\,\% of its forward CoM acceleration.
 Tracking it stiffly forces the robot away from its own dynamics: raising the forward and sideways CoM weights to 5000 made seven of eight random schedules fail.
