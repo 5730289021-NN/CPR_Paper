@@ -486,22 +486,18 @@ It runs in real time, so its results vary more between runs (79 of 104 in an ear
 All forward and all but one backward pushes are recovered; 23 of our 24 failures come from sideways pushes.
 
 \subsection{What the refiner has to correct}
-The results point to three weaknesses, each of which maps to a part of $\gamma$, and to one that lies outside its reach.
+In \eqref{eq:refined}, $\gamma_K$ changes how the torques react to an error, and $\gamma_x$ shifts the state they react to.
+The results give a role to each, and one limit.
 
-\emph{Execution after a strong push.} Without step adaptation, 11 of the 35 full-stride failures happen before any recovery step, with a joint at its torque limit about 0.11\,s after the push.
-The wrench cone is only a penalty in the OCP, and the gains are tuned for normal walking.
-Step adaptation leaves 2 of 24 failures of this kind, but the first fraction of a second after a push is decided by the feedback policy between two solves.
-Higher torque weights on the leg in stance and a higher foot weight during the swing are the kind of change the refiner can make in that situation.
+\emph{Reaction after a push ($\gamma_K$).} Without step adaptation, 11 of the 35 full-stride failures happen before any recovery step, with a joint at its torque limit about 0.11\,s after the push; with the final controller, 2 of 24 remain.
+In this first fraction of a second, only the feedback policy acts, with gains tuned for normal walking and a wrench cone that is only a penalty.
+Higher torque weights on the leg in stance or a higher foot weight during the swing are changes of $\gamma_K$.
 
-\emph{Tracking the LIPM.} The CoM path of the LIPM fits the robot's sideways motion well but explains only 39\,\% of its forward CoM acceleration.
-Tracking it stiffly forces the robot away from its own dynamics: raising the forward and sideways CoM weights to 5000 made seven of eight random schedules fail.
-A set-point shift can counter the systematic part of this mismatch with a steady bias, without stiffening the tracking.
+\emph{Model mismatch ($\gamma_x$).} On the random schedules, the measured CoM stays about 9\,mm (RMS per axis) from the LIPM plan, and the measured ZMP about 26\,mm from the planned one.
+A gain only reacts to such a persistent error; a set-point shift can counter its systematic part with a steady bias, without stiffening the tracking.
 
-\emph{No single set of weights.} In earlier sweeps without step adaptation, every weight setting failed on about 20\,\% of fresh random schedules, and the same schedules failed under all of them.
-Weight tuning had reached its limit, which is the motivation for weights that change with the situation.
-
-\emph{Recovery steps that fall short.} With the final controller, 22 of the 24 failures come 0.8\,s or more after the push, after a median of two recovery steps, and only one of them ever places a foot beyond the measured DCM, against 56 of the 80 recovered pushes (median margin 29\,mm).
-These failures need a longer or earlier step, which is the job of the gait generator and outside the reach of the refiner.
+\emph{Outside its reach.} 22 of the 24 failures come 0.8\,s or more after the push, after a median of two recovery steps, and only one places a foot beyond the measured DCM, against 56 of the 80 recovered pushes.
+These need a longer or earlier step, which is the job of the gait generator.
 
 \section{Conclusion}
 We built a torque-controlled walking controller for HRP-5P that couples an IS-MPC gait generator, which solves footstep positions and timing jointly and adapts the swing step to the measured DCM, with a whole-body MPC of the legs solved by Box-FDDP at 20\,Hz within the torque limits.
