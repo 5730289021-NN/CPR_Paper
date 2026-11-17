@@ -408,24 +408,20 @@ which stays bounded for a bounded shift if the time-varying closed loop is expon
 \subsection{Properties and limits}
 \emph{Structured.} With positive weights, $Q_{uu}$ is positive definite and $K'$ is the optimal feedback of a valid local linear-quadratic problem.
 The refiner can choose a poor cost, but it cannot produce a gain with flipped signs or a broken coupling between joints.
-This is not a safety guarantee, however.
-The gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
-What keeps exploration safe are the bounds and rate limits on $\gamma$.
-A safety check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl} could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
-$K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics, which is required for using such gains on hardware \cite{grandia2019feedback}.
+$K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics.
 
 \emph{Compact and meaningful.} The latent representation $\gamma$ has 22 numbers, each with a physical meaning that can be bounded and inspected.
 The decoded gain depends smoothly on them.
 
-\emph{Inexpensive.} The decoder is a weighted sum and one recursion over 20 nodes.
-It needs the derivatives of each cost term at the final trajectory, which must be evaluated once more if the last solver step moved the trajectory.
-That evaluation dominates the cost of an iteration, and a full solver iteration takes about 0.8\,ms in our implementation, so decoding costs at most that much.
+\emph{Inexpensive.} The decoder reuses the cost-term and dynamics Jacobians stored by the last MPC solve, so it evaluates no model derivative: it forms a weighted sum and runs one Riccati recursion over 20 nodes.
+With $\gamma_K=0$, it reproduces the gains of the MPC exactly.
 
-\emph{Bounded.} The decoder only reaches gains that are optimal for some cost on the model's dynamics.
-If those dynamics are wrong, the best gain may lie outside this family, and the refiner can only make the gains less aggressive.
-Some outputs have no effect in some phases (the swing-foot shift in double support), and the gains do not respond evenly to the weights, so each scale needs a calibrated bound.
-The scales and the shift are also rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and since $\delta x$ is held between two outputs, the rate limit keeps its steps small.
-Finally, the refiner cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
+\emph{Bounded.} This structure is not a safety guarantee: the gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
+Each scale therefore has a calibrated bound, since the gains do not respond evenly to the weights, and $\gamma$ is rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing.
+A safety check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl} could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
+
+\emph{Limits.} The decoder only reaches gains that are optimal for some cost on the model's dynamics, so if those dynamics are wrong, the best gain may lie outside this family.
+The refiner also cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
 
 \subsection{Learning for robustness}
 The refiner observes the state, a short history of tracking errors and torques, the contact flags and step phase, the velocity command and its own previous output.
