@@ -364,7 +364,7 @@ $\gamma_x$ & base and swing-foot pose shifts; leg joints follow & 12\\
 \end{table}
 
 \subsection{Set-point shift}
-The refiner outputs a shift $\delta b$ of the base pose and a shift $\delta s$ of the swing-foot pose, $\gamma_x=(\delta b,\delta s)$, both as 6-vectors in the tangent space used by $\ominus$.
+The refiner outputs a shift $\delta b$ of the base pose and a shift $\delta s$ of the swing-foot pose, $\gamma_x=(\delta b,\delta s)$, both as 6-vectors in the tangent space.
 The decoder turns them into a shift of the leg joints.
 The set-point shift has the same layout as the state error,
 \begin{equation}
@@ -411,7 +411,7 @@ Unlike a gain, the shift can remove a steady error such as a CoM offset, but its
 The refiner can choose a poor cost, but it cannot produce a gain with flipped signs or a broken coupling between joints.
 This is not a safety guarantee, however.
 The gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
-What keeps exploration safe are the bounds and rate limits on $\gamma$ and the slew-rate limit on $\delta x$.
+What keeps exploration safe are the bounds and rate limits on $\gamma$.
 A safety check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl} could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
 $K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics, which is required for using such gains on hardware \cite{grandia2019feedback}.
 
@@ -425,7 +425,7 @@ That evaluation dominates the cost of an iteration, and a full solver iteration 
 \emph{Bounded.} The decoder only reaches gains that are optimal for some cost on the model's dynamics.
 If those dynamics are wrong, the best gain may lie outside this family, and the refiner can only make the gains less aggressive.
 Some outputs have no effect in some phases (the swing-foot shift in double support), and the gains do not respond evenly to the weights, so each scale needs a calibrated bound.
-The scales and the shift are also rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and since $\delta x$ is held between two outputs, the rate limit keeps its steps small and the slew-rate limit on $\delta x$ turns any remaining step into a ramp.
+The scales and the shift are also rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and since $\delta x$ is held between two outputs, the rate limit keeps its steps small.
 Finally, the refiner cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
 
 \subsection{Learning for robustness}
