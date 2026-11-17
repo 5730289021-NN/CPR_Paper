@@ -368,10 +368,10 @@ The refiner outputs a shift $\delta b$ of the base pose and a shift $\delta s$ o
 The decoder turns them into a shift of the leg joints.
 The set-point shift has the same layout as the state error,
 \begin{equation}
-\delta x=\begin{bmatrix}\delta b\\ \delta q_J\\ 0\end{bmatrix},
+\delta x=\begin{bmatrix}\delta b\\ \delta q_J\\ 0_{18}\end{bmatrix}\in\R^{36},
 \label{eq:setpoint}
 \end{equation}
-with the base pose first, then the twelve leg joints, and a zero velocity part.
+with the base pose first ($\delta b\in\R^6$), then the twelve leg joints ($\delta q_J\in\R^{12}$), and a zero velocity part for the 18 base and joint velocities.
 The shift is applied at the current time only and held until the refiner outputs the next $\gamma_x$, so it is an offset rather than a trajectory, and a zero velocity part is consistent with it.
 To first order, a base shift $\delta b$ and a joint change $\delta q_{J,f}$ of leg $f$ move foot $f$ by
 \begin{equation}
