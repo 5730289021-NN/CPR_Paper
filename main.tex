@@ -319,7 +319,7 @@ The decoder does not change the cost of the MPC itself, i.e., every solve uses t
 The decoder uses a copy $\ell'$ of the cost with scaled weights to recompute the gains.
 Each scale multiplies one weight of \eqref{eq:costwb}:
 \begin{align}
-w'_k&=w_k\,e^{\gamma_k},\qquad k\in\{B,J,V,F,\tau_1,\dots,\tau_6\},\label{eq:scale}\\
+w'_j&=w_j\,e^{\gamma_j},\qquad j\in\{B,J,V,F,\tau_1,\dots,\tau_6\},\label{eq:scale}\\
 w'_C&=w_C,\qquad w'_W=w_W.\label{eq:scaleG}
 \end{align}
 Here $\gamma_K=(\gamma_B,\gamma_J,\gamma_V,\gamma_F,\gamma_{\tau_1},\dots,\gamma_{\tau_6})$ contains four tracking scales (base orientation, joint posture, velocity and foot terms) and six torque scales (one per joint group).
