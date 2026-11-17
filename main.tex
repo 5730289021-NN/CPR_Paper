@@ -230,9 +230,9 @@ and the terminal cost keeps the CoM, foot and state terms without the torque and
 \label{eq:costterm}
 \end{align}
 with a larger CoM weight $w_G^N$.
-The terms penalize the CoM $c$, the placements $M_f\in SE(3)$ of the two feet, the base orientation $R_B$, the joint angles $q_J$, the velocities and the torques $u_g$ of six joint groups (hip, knee and ankle of the stance and the swing leg).
+The terms penalize the CoM $c$, the placements $M_f\in SE(3)$ of the two feet, the base orientation $R_B$, the joint angles $q_J$, the velocities and the torques $u_g$ of six joint groups (hip (3 joints), knee (1) and ankle (2) of the left and right legs).
 The references $c^{\mathrm{ref}}$ and $M_f^{\mathrm{ref}}$ come from the gait generator, and $R_B^0,q_J^0$ are the standing posture.
-The last term of \eqref{eq:costwb} tries to keep each contact wrench inside its cone $A_f\lambda_f\le0$ (unilateral force, friction coefficient 1 and a CoP within a $0.18\times0.09$\,m sole).
+The last term of \eqref{eq:costwb} tries to keep each contact wrench inside its cone $A_f\lambda_f\le0$ (unilateral force, friction coefficient 1 and a CoP within a $0.18\times0.09$\,m rectangle, about 50\,\% of the area of the actual sole).
 The solver handles only box constraints, so the cone enters as a quadratic penalty.
 The weights are listed in Table~\ref{tab:weights}.
 In compact form, $\ell=\tfrac12\sum_c w_c\|r_c(x,u)\|^2_{W_c}$ over all terms $c$.
@@ -244,7 +244,7 @@ Between solves, the torque is
 \label{eq:riccati}
 \end{equation}
 evaluated at 1\,kHz with the measured state $x$, where $\ominus$ is the difference on the state manifold.
-The 36 columns of $K_i$ multiply the errors of the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12).
+$K_i\in\R^{12\times36}$ maps the state error, made of the errors of the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), to the 12 leg joint torques.
 
 \begin{table}[t]
 \caption{Cost weights of the whole-body MPC}
@@ -279,7 +279,7 @@ At the node rate of 40\,Hz, the refiner (Fig.~\ref{fig:stack}) adjusts both part
 \tau=\ub+K'\,\big((\xb\oplus\delta x)\ominus x\big).
 \label{eq:refined}
 \end{equation}
-It outputs a latent representation $\gamma=(\gamma_w,\gamma_x)$, and a fixed decoder maps $\gamma_w$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\delta x$ of the set-point.
+It outputs a latent representation $\gamma=(\gamma_K,\gamma_x)$, and a fixed decoder maps $\gamma_K$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\delta x$ of the set-point.
 Since the decoder is not learned, RL only explores the latent space, and $\gamma=0$ gives exactly the MPC controller.
 Since the network is initialized to output zero, training starts from the behavior of the model-based controller of Section~\ref{sec:base} alone.
 
@@ -293,12 +293,12 @@ Since the network is initialized to output zero, training starts from the behavi
 \node[blk, minimum width=17mm] (mpc) at (0,0) {MPC\\(Fig.~\ref{fig:base})\\20\,Hz};
 \node[blk, minimum width=30mm] (fb) at (35,0) {Feedback policy, 1\,kHz\\$\ub+K'\big((\xb\oplus\delta x)\ominus x\big)$};
 \node[blk, minimum width=11mm] (rob) at (68,0) {Robot};
-\node[dec, minimum width=29mm] (bp) at (13.5,20) {Riccati backward pass\\$\gamma_w\mapsto K'$};
+\node[dec, minimum width=29mm] (bp) at (13.5,20) {Riccati backward pass\\$\gamma_K\mapsto K'$};
 \node[dec, minimum width=27mm] (pr) at (46.5,20) {Leg completion\\$\gamma_x\mapsto\delta x$};
 \node[draw=orange!70!black, dashed, rounded corners=3pt, inner sep=3.5pt, fit=(bp)(pr)] (decgrp) {};
 \node[lab, text=orange!60!black, anchor=north east] at ($(decgrp.south east)+(0,-0.5)$) {\textbf{Decoder}};
 \node[res, minimum width=40mm] (pol) at (28,41) {\textbf{Refiner} $\pi_\theta$, 40\,Hz};
-\draw[->, blue!60!black, thick] (pol.south -| 16,0) -- node[lab, left, text=blue!60!black] {weight scales\\$\gamma_w$ (10)} (16,24.5);
+\draw[->, blue!60!black, thick] (pol.south -| 16,0) -- node[lab, left, text=blue!60!black] {weight scales\\$\gamma_K$ (10)} (16,24.5);
 \draw[->, blue!60!black, thick] (pol.south -| 42,0) -- node[lab, right, text=blue!60!black] {set-point shift\\$\gamma_x$ (12)} (42,24.5);
 \draw[->] (4,6) -- node[lab, left] {$\xb,\ub$,\\stored\\derivatives} (4,15.5);
 \draw[->] (25,15.5) -- node[lab, right, pos=0.45] {$K'$} (25,4.5);
@@ -319,10 +319,10 @@ The decoder does not change the cost of the MPC itself, i.e., every solve uses t
 The decoder uses a copy $\ell'$ of the cost with scaled weights to recompute the gains.
 Each scale multiplies one weight of \eqref{eq:costwb}:
 \begin{align}
-w'_k&=w_k\,e^{\gamma_k},\qquad k\in\{B,J,V,F,\tau_1,\dots,\tau_6\},\label{eq:scale}\\
+w'_j&=w_j\,e^{\gamma_j},\qquad j\in\{B,J,V,F,\tau_1,\dots,\tau_6\},\label{eq:scale}\\
 w'_G&=w_G,\qquad w'_W=w_W.\label{eq:scaleG}
 \end{align}
-Here $\gamma_w=(\gamma_B,\gamma_J,\gamma_V,\gamma_F,\gamma_{\tau_1},\dots,\gamma_{\tau_6})$ contains four tracking scales (base orientation, joint posture, velocity and foot terms) and six torque scales (one per joint group).
+Here $\gamma_K=(\gamma_B,\gamma_J,\gamma_V,\gamma_F,\gamma_{\tau_1},\dots,\gamma_{\tau_6})$ contains four tracking scales (base orientation, joint posture, velocity and foot terms) and six torque scales (one per joint group).
 Since multiplying all weights by a common factor only scales every $Q$ and $V$ in \eqref{eq:backward} and leaves $K'$ unchanged, we fix the CoM weight as the reference. As the CoM reference is the output of the LIPM model, we prefer the CoM to remain the main objective. Aside from that, we keep the cone penalty as it is.
 
 The decoder then runs the backward pass once more along the current trajectory, with $\ell'$ in place of $\ell$.
@@ -354,8 +354,8 @@ In this design, only the gains are replaced, so the decoded gains change the rea
 \toprule
 Part & Content & Size\\
 \midrule
-$\gamma_w$, tracking & base orientation, posture, velocities, feet (CoM fixed) & 4\\
-$\gamma_w$, torque & hip, knee, ankle; stance and swing leg & 6\\
+$\gamma_K$, tracking & base orientation, posture, velocities, feet (CoM fixed) & 4\\
+$\gamma_K$, torque & hip, knee, ankle; left and right leg & 6\\
 $\gamma_x$ & base and swing-foot pose shifts; leg joints follow & 12\\
 \midrule
 \multicolumn{2}{@{}l}{Total, decoded into $K'\in\R^{12\times36}$ per node and $\delta x\in\R^{36}$} & 22\\
@@ -364,14 +364,14 @@ $\gamma_x$ & base and swing-foot pose shifts; leg joints follow & 12\\
 \end{table}
 
 \subsection{Set-point shift}
-The refiner outputs a shift $\delta b$ of the base pose and a shift $\delta s$ of the swing-foot pose, $\gamma_x=(\delta b,\delta s)$, both as 6-vectors in the tangent space used by $\ominus$.
+The refiner outputs a shift $\delta b$ of the base pose and a shift $\delta s$ of the swing-foot pose, $\gamma_x=(\delta b,\delta s)$, both as 6-vectors in the tangent space.
 The decoder turns them into a shift of the leg joints.
 The set-point shift has the same layout as the state error,
 \begin{equation}
-\delta x=\begin{bmatrix}\delta b\\ \delta q_J\\ 0\end{bmatrix},
+\delta x=\begin{bmatrix}\delta b\\ \delta q_J\\ 0_{18}\end{bmatrix}\in\R^{36},
 \label{eq:setpoint}
 \end{equation}
-with the base pose first, then the twelve leg joints, and a zero velocity part.
+with the base pose first ($\delta b\in\R^6$), then the twelve leg joints ($\delta q_J\in\R^{12}$), and a zero velocity part for the 18 base and joint velocities.
 The shift is applied at the current time only and held until the refiner outputs the next $\gamma_x$, so it is an offset rather than a trajectory, and a zero velocity part is consistent with it.
 To first order, a base shift $\delta b$ and a joint change $\delta q_{J,f}$ of leg $f$ move foot $f$ by
 \begin{equation}
@@ -394,9 +394,7 @@ Together they span every set-point change that keeps the stance feet in place: o
 Unlike a projection onto the null space of the contact Jacobian, this reproduces the requested base shift exactly.
 
 At liftoff and touchdown, the row of a foot in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\delta s$ unless $\delta s=0$.
-We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\delta s\|$ in double support and near touchdown; unlike a fixed fade, this keeps the meaning of $\delta s$ constant over the swing.
-Since a touchdown can move at short notice, each coordinate of $\delta x$ is also slew-rate limited at 1\,kHz, so any remaining jump becomes a short ramp.
-The shift is decoded only for the current node, with the Jacobians at $\xb_i$ and the contacts $\mathcal C_i$, and does not enter the backward pass.
+We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\delta s\|$ in double support and near touchdown.
 
 Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K'\delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\delta x$: a learned bias on the state the controller sees.
 It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\delta x$.
@@ -406,34 +404,29 @@ With $\zeta_i=x_i\ominus\xb_i$ and $A_i,B_i$ the dynamics Jacobians, the error e
 \label{eq:cl}
 \end{equation}
 which stays bounded for a bounded shift if the time-varying closed loop is exponentially stable.
-Unlike a gain, the shift can remove a steady error such as a CoM offset, but its torque $K'\delta x$ depends on the weights, so the refiner learns both parts together.
 
 \subsection{Properties and limits}
 \emph{Structured.} With positive weights, $Q_{uu}$ is positive definite and $K'$ is the optimal feedback of a valid local linear-quadratic problem.
 The refiner can choose a poor cost, but it cannot produce a gain with flipped signs or a broken coupling between joints.
-This is not a safety guarantee, however.
-The gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
-What keeps exploration safe are the bounds and rate limits on $\gamma$ and the slew-rate limit on $\delta x$.
-A safety check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl} could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
-$K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics, which is required for using such gains on hardware \cite{grandia2019feedback}.
+$K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics.
 
 \emph{Compact and meaningful.} The latent representation $\gamma$ has 22 numbers, each with a physical meaning that can be bounded and inspected.
 The decoded gain depends smoothly on them.
 
-\emph{Inexpensive.} The decoder is a weighted sum and one recursion over 20 nodes.
-It needs the derivatives of each cost term at the final trajectory, which must be evaluated once more if the last solver step moved the trajectory.
-That evaluation dominates the cost of an iteration, and a full solver iteration takes about 0.8\,ms in our implementation, so decoding costs at most that much.
+\emph{Inexpensive.} The decoder reuses the cost-term and dynamics Jacobians stored by the last MPC solve, so it evaluates no model derivative: it forms a weighted sum and runs one Riccati recursion over 20 nodes.
+With $\gamma_K=0$, it reproduces the gains of the MPC exactly.
 
-\emph{Bounded.} The decoder only reaches gains that are optimal for some cost on the model's dynamics.
-If those dynamics are wrong, the best gain may lie outside this family, and the refiner can only make the gains less aggressive.
-Some scales have no effect in some phases (the swing scales in double support), and the gains do not respond evenly to the weights, so each scale needs a calibrated bound.
-The scales and the shift are also rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and since $\delta x$ is held between two outputs, the rate limit keeps its steps small and the slew-rate limit on $\delta x$ turns any remaining step into a ramp.
-Finally, the refiner cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
+\emph{Bounded.} This structure is not a safety guarantee: the gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
+Each scale therefore has a calibrated bound, since the gains do not respond evenly to the weights, and $\gamma$ is rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing.
+A safety check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl} could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
+
+\emph{Limits.} The decoder only reaches gains that are optimal for some cost on the model's dynamics, so if those dynamics are wrong, the best gain may lie outside this family.
+The refiner also cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
 
 \subsection{Learning for robustness}
 The refiner observes the state, a short history of tracking errors and torques, the contact flags and step phase, the velocity command and its own previous output.
 From the history it can recognize the situation, such as a heavier robot or a softer floor, and pick weights for it rather than learning one compromise setting.
-It is trained with PPO \cite{schulman2017ppo} in simulation under the uncertainties it should withstand: pushes, mass and CoM offsets, friction, contact stiffness and actuation delay.
+It is expected to be trained with PPO \cite{schulman2017ppo} in simulation under the uncertainties it should withstand: pushes, mass and CoM offsets, friction, contact stiffness, uneven ground and actuation delay.
 The reward combines velocity tracking and staying upright with penalties on the size and rate of $\gamma$, on joint torques, on a center of pressure (CoP) near the sole edge, on a tilted stance foot and on a swing-foot shift $\delta s$ in double support or near touchdown.
 Since the MPC and the decoder are part of the environment, no derivative of the solver is needed.
 
@@ -468,11 +461,10 @@ Warm-started solves stop at ten iterations; only the cold first solve takes long
 Controller & Random & Restarts & Pushes, & Pushes,\\
  & (falls) & (falls) & one step & full stride\\
 \midrule
-Open-loop gait, FDDP, 10\,Hz & 1/28 & 0/12 & 28/48 & 50/104\\
-+ step adaptation & 0/28 & 0/12 & 30/48 & 57/104\\
-+ Box-FDDP within the torque limits & 0/28 & 0/12 & 32/48 & 64/104\\
-+ measured ZMP support & 0/28 & 0/12 & 35/48 & 66/104\\
-+ whole-body MPC at 20\,Hz (ours) & 0/28 & 0/12 & \textbf{37/48} & \textbf{80/104}\\
+Open-loop gait, FDDP & 0/28 & 0/12 & 34/48 & 69/104\\
++ step adaptation & 0/28 & 0/12 & 39/48 & 79/104\\
++ Box-FDDP within the torque limits & 0/28 & 0/12 & 38/48 & 79/104\\
++ measured ZMP support (ours) & 0/28 & 0/12 & 37/48 & 80/104\\
 \midrule
 ismpc\_walking \cite{mc_ismpcwalking} (position control) & 1/28 & 0/12 & 36/48 & 70/104\\
 \bottomrule
@@ -485,13 +477,10 @@ ismpc\_walking \cite{mc_ismpcwalking} (position control) & 1/28 & 0/12 & 36/48 &
 
 \subsection{Robustness}
 Table~\ref{tab:robust} tests every row on the same 28 random command schedules, 12 restarts from standing and two push sets.
-Step adaptation removes the only fall on the random schedules and adds 2 one-step and 7 full-stride pushes; no variant falls on the restarts.
-Box-FDDP adds 2 and 7 more; in a separate sweep, the gain came from the solver, since bounding the torques at the real limits changed nothing measurable and bounding them at 90\,\% of the limits lost five pushes.
-Centering the ZMP limits on the measured feet adds 3 and 2.
+No variant falls on the schedules or the restarts.
+Step adaptation is the main gain: it adds 5 one-step and 10 full-stride pushes.
+Box-FDDP within the torque limits and centering the ZMP limits on the measured feet change the push counts by one at most, which is within the noise; they are kept because they keep the planned torques and ZMP within what the robot can realize.
 
-The one-step set covers only one stance phase of our 0.8\,s steps and turned out to favor it: over a full stride, the same controller recovers only 66 of 104 pushes.
-Running the whole-body MPC at 20\,Hz instead of 10\,Hz, with the same 0.5\,s horizon in 20 knots of 25\,ms, raises this to 80 of 104 (20 newly recovered, 6 lost) and the one-step set to 37 of 48, without any fall on the schedules or restarts.
-In a separate sweep, the gain came from the rate, not the knots: 25\,ms knots at 10\,Hz recovered only 53 of 104.
 The open-source ismpc\_walking controller \cite{mc_ismpcwalking}, run on the same machine and scenarios with position control, recovers 36 of 48 and 70 of 104 pushes, ten of them by stopping; with its default gait, it walks at up to 0.28\,m/s.
 It runs in real time, so its results vary more between runs (79 of 104 in an earlier run).
 All forward and all but one backward pushes are recovered; 23 of our 24 failures come from sideways pushes.
@@ -499,14 +488,10 @@ All forward and all but one backward pushes are recovered; 23 of our 24 failures
 \subsection{What the refiner has to correct}
 The results point to three weaknesses, each of which maps to a part of $\gamma$, and to one that lies outside its reach.
 
-\emph{Execution after a strong push.} After a 40\,N\,s sideways push, the gait generator plans the recovery step and the foot lands about 0.3\,s later with the DCM inside it.
-At 10\,Hz, the robot still failed during the execution.
-The stance foot slid by 4.6\,cm under the large lateral force, the swing foot lagged its moving target by up to 8.5\,cm and landed with 3\,kN, and a joint then stayed at its torque limit.
-Over the full stride, 25 of the 38 failures at 10\,Hz happened in the execution before any recovery step, with a joint, mostly an ankle, at its torque limit about 0.17\,s after the push.
+\emph{Execution after a strong push.} Without step adaptation, 11 of the 35 full-stride failures happen before any recovery step, with a joint at its torque limit about 0.11\,s after the push.
 The wrench cone is only a penalty in the OCP, and the gains are tuned for normal walking.
-Fixed caps on the ankle torques in the OCP did not help (three to seven pushes fewer).
-Running the MPC at 20\,Hz leaves only 1 of 24 failures of this kind: a feedback policy refreshed twice as often recovers 14 more pushes, which shows how much depends on the policy between two solves.
-Higher torque weights on the stance leg and a higher foot weight during the swing are the kind of change the refiner can make in that situation, without the cost of solving more often.
+Step adaptation leaves 2 of 24 failures of this kind, but the first fraction of a second after a push is decided by the feedback policy between two solves.
+Higher torque weights on the leg in stance and a higher foot weight during the swing are the kind of change the refiner can make in that situation.
 
 \emph{Tracking the LIPM.} The CoM path of the LIPM fits the robot's sideways motion well but explains only 39\,\% of its forward CoM acceleration.
 Tracking it stiffly forces the robot away from its own dynamics: raising the forward and sideways CoM weights to 5000 made seven of eight random schedules fail.
@@ -515,7 +500,7 @@ A set-point shift can counter the systematic part of this mismatch with a steady
 \emph{No single set of weights.} In earlier sweeps without step adaptation, every weight setting failed on about 20\,\% of fresh random schedules, and the same schedules failed under all of them.
 Weight tuning had reached its limit, which is the motivation for weights that change with the situation.
 
-\emph{Recovery steps that fall short.} At 20\,Hz, 23 of the 24 failures come 0.8\,s or more after the push, after a median of two recovery steps, and only two of them ever place a foot beyond the measured DCM, against 56 of the 80 recovered pushes (median margin 29\,mm).
+\emph{Recovery steps that fall short.} With the final controller, 22 of the 24 failures come 0.8\,s or more after the push, after a median of two recovery steps, and only one of them ever places a foot beyond the measured DCM, against 56 of the 80 recovered pushes (median margin 29\,mm).
 These failures need a longer or earlier step, which is the job of the gait generator and outside the reach of the refiner.
 
 \section{Conclusion}
@@ -524,7 +509,7 @@ In simulation, the robot walks at up to 0.5\,m/s, turns and walks backward with 
 Most remaining failures are sideways pushes whose recovery steps land short of the DCM.
 
 Since a whole-body MPC is optimal only for its model, we proposed a control policy refiner that modifies the gain and set-point of its feedback policy through 22 cost-weight scales and set-point shifts, decoded by one backward pass of the solver, which keeps learning structured and low-dimensional.
-Replanning twice as often recovered 14 more pushes, which shows how much depends on the feedback between solves; training the refiner is our next step.
+Training the refiner is our next step.
 
 % slightly smaller reference list (small deviation from the IEEE template, to stay within 6 pages)
 \begingroup
