@@ -45,7 +45,7 @@ Then, one Riccati backward pass along the current trajectory turns the scaled we
 The gains that the refiner produces are therefore the optimal feedback of a local problem, and the set-point shift is designed to respect the contact constraints.
 This keeps exploration structured and small.
 For the base controller, we apply IS-MPC to provide the center of mass (CoM) and gait solution, and feed it as a reference to a lower-body MPC. The upper body is stabilized with a linear quadratic regulator (LQR).
-In simulation, the robot walks at up to 0.5\,m/s with a median whole-body solve time of 5.8\,ms within its 50\,ms period, does not fall on 28 random command schedules or 12 restarts, and recovers from 80 of 104 pushes spread over a full stride, against 70 to 79 for an open-source position-controlled IS-MPC walker that walks only up to 0.28\,m/s.
+In simulation, the base controller walks at up to 0.5\,m/s without falling on random command schedules and recovers 80 of 104 pushes over a full stride, on par with an open-source IS-MPC walker.
 The refiner itself has not been trained yet.
 \end{abstract}
 
