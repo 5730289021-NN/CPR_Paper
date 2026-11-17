@@ -482,7 +482,7 @@ Centering the ZMP limits on the measured feet adds 3 and 2.
 The one-step set covers only one stance phase of our 0.8\,s steps and turned out to favor it: over a full stride, the same controller recovers only 66 of 104 pushes.
 Running the whole-body MPC at 20\,Hz instead of 10\,Hz, with the same 0.5\,s horizon in 20 knots of 25\,ms, raises this to 80 of 104 (20 newly recovered, 6 lost) and the one-step set to 37 of 48, without any fall on the schedules or restarts.
 In a separate sweep, the gain came from the rate, not the knots: 25\,ms knots at 10\,Hz recovered only 53 of 104.
-The open-source ismpc\_walking controller \cite{mc_ismpcwalking}, run on the same machine and scenarios with position control, recovers 36 of 48 and 70 of 104 pushes, ten of them by stopping, and walks only up to 0.28\,m/s.
+The open-source ismpc\_walking controller \cite{mc_ismpcwalking}, run on the same machine and scenarios with position control, recovers 36 of 48 and 70 of 104 pushes, ten of them by stopping; with its default gait, it walks at up to 0.28\,m/s.
 It runs in real time, so its results vary more between runs (79 of 104 in an earlier run).
 All forward and all but one backward pushes are recovered; 23 of our 24 failures come from sideways pushes.
 
@@ -510,7 +510,7 @@ These failures need a longer or earlier step, which is the job of the gait gener
 
 \section{Conclusion}
 We built a torque-controlled walking controller for HRP-5P that couples an IS-MPC gait generator, which solves footstep positions and timing jointly and adapts the swing step to the measured DCM, with a whole-body MPC of the legs solved by Box-FDDP at 20\,Hz within the torque limits.
-In simulation, the robot walks at up to 0.5\,m/s, turns and walks backward with a median whole-body solve of 5.8\,ms, does not fall on random schedules or restarts, and recovers 80 of 104 pushes over a full stride, on par with or above a position-controlled IS-MPC walker that walks only up to 0.28\,m/s.
+In simulation, the robot walks at up to 0.5\,m/s, turns and walks backward with a median whole-body solve of 5.8\,ms, does not fall on random schedules or restarts, and recovers 80 of 104 pushes over a full stride, on par with an open-source IS-MPC walker.
 Most remaining failures are sideways pushes whose recovery steps land short of the DCM.
 
 Since a whole-body MPC is optimal only for its model, we proposed a control policy refiner that modifies the gain and set-point of its feedback policy through 22 cost-weight scales and set-point shifts, decoded by one backward pass of the solver, which keeps learning structured and low-dimensional.
