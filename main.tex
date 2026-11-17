@@ -71,7 +71,7 @@ However, any model-based controller is optimal only under its model assumptions;
 In contrast, learning-based controllers are trained in simulation with reinforcement learning (RL) \cite{hwangbo2019learning,radosavovic2024humanoid}. As a result, they can adapt to such effects from experience.
 However, they are black boxes, which raises concerns about safety and explainability.
 
-This opens a new landscape that embraces both approaches: residual reinforcement learning (ResRL) \cite{silver2018residual,johannink2019residual}. This technique learns a correction on top of a model-based controller by modifying a joint torque or a position target \cite{jenelten2024dtc,jeon2025residualmpc}.
+This opens a new landscape that embraces both approaches: residual reinforcement learning (ResRL) \cite{silver2018residual,johannink2019residual}. This technique learns a correction on top of a model-based controller by modifying a joint torque or a position target \cite{cheng2025rambo,jeon2025residualmpc}.
 
 Instead of applying the residual to the output directly, this contribution proposes a way to adjust the control law.
 When the optimal control problem is solved with differential dynamic programming (DDP) \cite{mayne1966ddp}, a closed-loop feedback policy is provided as a by-product for controlling the system in real time.
@@ -87,7 +87,7 @@ This paper presents the model-based controller in Section~\ref{sec:base}, the re
 \section{Related Work}
 
 \emph{Gait generation with reduced models.}
-Preview control \cite{kajita2003preview} and the linear MPC gait generators that also choose the footsteps \cite{wieber2006mpc,herdt2010online} are all based on the LIPM.
+Preview control \cite{kajita2003preview} and linear MPC gait generators \cite{wieber2006mpc}, which can also choose the footsteps \cite{herdt2010online}, are all based on the LIPM.
 IS-MPC \cite{scianca2020ismpc} enforces the boundedness condition of \cite{lanari2014boundedness} as a constraint.
 Dallard \emph{et al.} \cite{dallard2025adios} closed the loop on the measured state and added a pre-optimization of the footstep timing, which is essential for push recovery \cite{khadiv2020timing}.
 
