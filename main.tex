@@ -80,8 +80,8 @@ This policy consists of the Riccati gains and a set-point.
 
 We aim to train a residual policy, the \emph{refiner}, over the gain and set-point of this closed-loop feedback controller, so that the integrated system becomes more robust to uncertainty.
 
-Nevertheless, learning the gains directly is impractical. In our whole-body MPC, each Riccati gain maps the 36-dimensional state error of the floating base and the twelve leg joints, in position and velocity, to twelve joint torque commands, so a policy would have to learn $12\times36=432$ coupled elements at every node.
-To solve this problem, we propose that the refiner acts on the \emph{cost} instead: once DDP performs a single backward pass with the modified cost, the new gain is computed. Together with a set-point shift, this approach drastically reduces the learned variables to a latent representation $\gamma$ of 22 numbers.
+Nevertheless, learning the gains directly is impractical. In our whole-body MPC, each Riccati gain maps the 36-dimensional state error of the floating base and the twelve leg joints, in position and velocity, to twelve joint torque commands, so a policy would have to learn $12\times36=432$ elements at every node.
+To solve this problem, we propose that the refiner acts on the \emph{cost} instead: once DDP performs a single backward pass with the modified cost, the new gain is computed. Together with a set-point shift, this approach drastically reduces the learned variables to a latent representation $\gamma$ of 10 cost-weight scales for the gain and 12 shifts for the set-point, 22 numbers in total.
 
 This paper presents the model-based controller in Section~\ref{sec:base}, the refiner in Section~\ref{sec:method}, and the simulation results of the model-based controller in Section~\ref{sec:results}.
 
@@ -181,14 +181,15 @@ J=\sum_k(\nu_k-1)^2+w_s\|s\|^2\\
 \end{multline}
 Instead of using block coordinate descent \cite{tseng2001bcd,wright2015coordinate,dallard2025adios}, we solve positions and times jointly as one nonlinear program with CasADi \cite{andersson2019casadi} as the solver interface and IPOPT \cite{wachter2006ipopt} as the solver backend.
 
-The IS-MPC QP then uses the result as candidate footsteps to generate the motion primitives: the CoM and swing-foot trajectories.
+The IS-MPC then uses the result as candidate footsteps to generate the motion primitives: the CoM and swing-foot trajectories.
 Its variables are the ZMP velocities $\dot p_j$, sampled every 50\,ms over a 2.5\,s control horizon, and the footstep positions $p_f^k$ in that horizon. It minimizes
 \begin{equation}
 \textstyle\sum_j\|\dot p_j\|^2+\beta\sum_k\|p_f^k-\hat p_f^k\|^2+w_z\sum_j\|p_j-\sigma_j\|^2,
 \label{eq:ismpc}
 \end{equation}
-where $\hat p_f^k$ are now the candidate footsteps and the last term keeps the ZMP centered in the sole ($\sigma_j$ is the center of the support region).
+where $\hat p_f^k$ are now the candidate footsteps and the last term tries to keep the ZMP centered in the sole ($\sigma_j$ is the center of the support region).
 The constraints keep the ZMP in the support region and the footsteps within kinematic limits, and impose the discrete form of \eqref{eq:stab}, with an anticipative tail \cite{scianca2020ismpc} of up to 6\,s in which the ZMP follows the remaining candidate steps.
+There is no terminal constraint: after the tail, the ZMP stays at the midpoint of the last two footsteps, so its velocity is zero.
 The QP is solved with OSQP \cite{stellato2020osqp} and re-solved at every 50\,ms tick.
 
 To keep such re-solves feasible, the discrete form of \eqref{eq:stab} is modified into a soft constraint with a large weight ($10^6$).
@@ -211,7 +212,7 @@ Over $N=20$ nodes of $\Delta t=25$\,ms, the OCP is
 \label{eq:ocp}
 \end{align}
 where $\hat x$ is the measured state, $\mathcal C_i$ is the set of feet in contact at node $i$ given by the gait generator, and $\lambda_f$ is the contact wrench of foot $f$.
-Each stance foot is held by a 6D contact constraint, stabilized toward its reference placement via Baumgarte stabilization ($e_f$ is the placement error, $k_p=10$, $k_d=2$).
+Each stance foot is held by a 6D contact constraint, stabilized toward its reference placement via Baumgarte stabilization \cite{baumgarte1972stabilization} ($e_f$ is the placement error, $k_p=10$, $k_d=2$).
 The running cost is
 \begin{align}
 \ell(x,u)&=\tfrac12\Big(w_G\,\|c(q)-c^{\mathrm{ref}}\|^2_{W_G}\nonumber\\
@@ -224,7 +225,7 @@ The running cost is
 and the terminal cost $\ell_N$ keeps the state terms.
 The terms penalize the CoM $c$, the placements $M_f\in SE(3)$ of the two feet, the base orientation $R_B$, the joint angles $q_J$, the velocities and the torques $u_g$ of six joint groups (hip, knee and ankle of the stance and the swing leg).
 The references $c^{\mathrm{ref}}$ and $M_f^{\mathrm{ref}}$ come from the gait generator, and $R_B^0,q_J^0$ are the standing posture.
-The last term keeps each contact wrench inside its cone $A_f\lambda_f\le0$ (unilateral force, friction coefficient 1 and a CoP within a $0.18\times0.09$\,m sole).
+The last term tries to keep each contact wrench inside its cone $A_f\lambda_f\le0$ (unilateral force, friction coefficient 1 and a CoP within a $0.18\times0.09$\,m sole).
 The solver handles only box constraints, so the cone enters as a quadratic penalty.
 The weights are listed in Table~\ref{tab:weights}.
 In compact form, $\ell=\tfrac12\sum_c w_c\|r_c(x,u)\|^2_{W_c}$ over all terms $c$.
@@ -262,6 +263,19 @@ Wrench cone & $w_W=10$ & --\\
 \section{Control Policy Refiner}
 \label{sec:method}
 
+
+\subsection{Overview}
+According to \eqref{eq:riccati}, the set-point $\xb$ is the state the plan expects the robot to be in, and the gain $K$ sets how the joint torques react to an error.
+Since this control law gives the actual joint torques, it determines the behavior at the small scale, which has to cope with a push, a mismatched mass distribution or rough terrain.
+At the node rate of 40\,Hz, the refiner (Fig.~\ref{fig:stack}) adjusts both parts:
+\begin{equation}
+\tau=\ub+K'\,\big((\xb\oplus\delta x)\ominus x\big).
+\label{eq:refined}
+\end{equation}
+It outputs a latent representation $\gamma=(\gamma_w,\gamma_x)$, and a fixed decoder maps $\gamma_w$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\delta x$ of the set-point.
+Since the decoder is not learned, RL only explores the latent space, and $\gamma=0$ gives exactly the MPC controller.
+Since the network is initialized to output zero, training starts from the behavior of the model-based controller of Section~\ref{sec:base} alone.
+
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[x=1mm, y=1mm, font=\scriptsize, >={Stealth[length=1.5mm]},
@@ -291,18 +305,6 @@ Wrench cone & $w_W=10$ & --\\
 \caption{The refiner stack. The MPC of Fig.~\ref{fig:base} is treated as one block. The refiner outputs 22 numbers. The decoder turns them into a full gain matrix $K'$ by one backward pass of the solver and into a contact-consistent set-point shift $\delta x$.}
 \label{fig:stack}
 \end{figure}
-
-\subsection{Overview}
-According to \eqref{eq:riccati}, the set-point $\xb$ is the state the plan expects the robot to be in, and the gain $K$ sets how the joint torques react to an error.
-Since this control law gives the actual joint torques, it determines the behavior at the small scale, which has to cope with a push, a mismatched mass distribution or rough terrain.
-At the node rate of 40\,Hz, the refiner (Fig.~\ref{fig:stack}) adjusts both parts:
-\begin{equation}
-\tau=\ub+K'\,\big((\xb\oplus\delta x)\ominus x\big).
-\label{eq:refined}
-\end{equation}
-It outputs a latent representation $\gamma=(\gamma_w,\gamma_x)$, and a fixed decoder maps $\gamma_w$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\delta x$ of the set-point.
-Since the decoder is not learned, RL only explores the latent space, and $\gamma=0$ gives exactly the MPC controller.
-Since the network is initialized to output zero, training starts from the behavior of the model-based controller of Section~\ref{sec:base} alone.
 
 \subsection{DDP backward recursion as a decoder for the gains}
 The Riccati gains are a function of the cost \eqref{eq:costwb}, and we exploit this fact to obtain new gains.
