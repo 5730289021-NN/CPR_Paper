@@ -394,9 +394,7 @@ Together they span every set-point change that keeps the stance feet in place: o
 Unlike a projection onto the null space of the contact Jacobian, this reproduces the requested base shift exactly.
 
 At liftoff and touchdown, the row of a foot in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\delta s$ unless $\delta s=0$.
-We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\delta s\|$ in double support and near touchdown; unlike a fixed fade, this keeps the meaning of $\delta s$ constant over the swing.
-Since a touchdown can move at short notice, each coordinate of $\delta x$ is also slew-rate limited at 1\,kHz, so any remaining jump becomes a short ramp.
-The shift is decoded only for the current node, with the Jacobians at $\xb_i$ and the contacts $\mathcal C_i$, and does not enter the backward pass.
+We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\delta s\|$ in double support and near touchdown.
 
 Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K'\delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\delta x$: a learned bias on the state the controller sees.
 It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\delta x$.
