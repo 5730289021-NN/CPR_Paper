@@ -189,7 +189,6 @@ Its variables are the ZMP velocities $\dot p_j$, sampled every 50\,ms over a 2.5
 \end{equation}
 where $\hat p_f^k$ are now the candidate footsteps and the last term tries to keep the ZMP centered in the sole ($\sigma_j$ is the center of the support region).
 The constraints keep the ZMP in the support region and the footsteps within kinematic limits, and impose the discrete form of \eqref{eq:stab}, with an anticipative tail \cite{scianca2020ismpc} of up to 6\,s in which the ZMP follows the remaining candidate steps.
-There is no terminal constraint: after the tail, the ZMP stays at the midpoint of the last two footsteps, so its velocity is zero.
 The QP is solved with OSQP \cite{stellato2020osqp} and re-solved at every 50\,ms tick.
 
 To keep such re-solves feasible, the discrete form of \eqref{eq:stab} is modified into a soft constraint with a large weight ($10^6$).
@@ -222,7 +221,7 @@ The running cost is
 &\quad+w_W\textstyle\sum_{f\in\mathcal C}\|\max(0,A_f\lambda_f)\|^2\Big),
 \label{eq:costwb}
 \end{align}
-and the terminal cost $\ell_N$ keeps the state terms.
+and the terminal cost $\ell_N$ keeps the CoM, foot and state terms (with $w_G=5$) but has no torque or wrench-cone term.
 The terms penalize the CoM $c$, the placements $M_f\in SE(3)$ of the two feet, the base orientation $R_B$, the joint angles $q_J$, the velocities and the torques $u_g$ of six joint groups (hip, knee and ankle of the stance and the swing leg).
 The references $c^{\mathrm{ref}}$ and $M_f^{\mathrm{ref}}$ come from the gait generator, and $R_B^0,q_J^0$ are the standing posture.
 The last term tries to keep each contact wrench inside its cone $A_f\lambda_f\le0$ (unilateral force, friction coefficient 1 and a CoP within a $0.18\times0.09$\,m sole).
