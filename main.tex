@@ -26,6 +26,7 @@
 \raggedbottom
 
 \begin{document}
+\bstctlcite{IEEEexample:BSTcontrol}
 
 \title{Control Policy Refiner in Legged Robotics:\\ Preliminary Results}
 
@@ -60,7 +61,7 @@ The upper layer plans with a reduced model such as the linear inverted pendulum 
 The lower layer is a whole-body controller that computes the joint torques, often implemented as a quadratic programming (QP)-based controller \cite{saab2013dynamic,herzog2016momentum} or a model predictive controller (MPC) \cite{mastalli2020crocoddyl,dantec2022wbmpc}.
 
 A reduced model is simple enough to analyze thoroughly, so a control law that keeps the robot walking without falling can be derived from it and computed fast.
-A control law based on the LIPM adjusts the zero-moment point (ZMP) to control the center of mass (CoM) position. Recent approaches rather steer the CoM by manipulating the divergent component of motion (DCM), because the CoM always follows the DCM.
+A control law based on the LIPM adjusts the zero-moment point (ZMP) \cite{vukobratovic2004zmp} to control the center of mass (CoM) position. Recent approaches rather steer the CoM by manipulating the divergent component of motion (DCM) \cite{takenaka2009dcm,englsberger2011capture}, closely related to the capture point \cite{pratt2006capture,koolen2012capturability}, because the CoM always follows the DCM.
 The DCM is the unstable part of the LIPM dynamics, and once the ZMP satisfies the boundedness condition \cite{lanari2014boundedness}, the DCM never grows indefinitely.
 Intrinsically stable MPC (IS-MPC) \cite{scianca2020ismpc,dallard2025adios} applies the theory by using it as a constraint, leading to long-term robot balancing.
 
@@ -68,7 +69,7 @@ On the other hand, the whole-body controller only has to track the CoM, foot and
 This separation of concerns makes model-based walking fast enough for practical use.
 
 However, any model-based controller is optimal only under its model assumptions; it does not take model mismatch and other uncertainties into account.
-In contrast, learning-based controllers are trained in simulation with reinforcement learning (RL) \cite{hwangbo2019learning,radosavovic2024humanoid}. As a result, they can adapt to such effects from experience.
+In contrast, learning-based controllers are trained in simulation with reinforcement learning (RL) \cite{hwangbo2019learning,lee2020learning,rudin2022minutes,radosavovic2024humanoid}. As a result, they can adapt to such effects from experience.
 However, they are black boxes, which raises concerns about safety and explainability.
 
 This opens a new landscape that embraces both approaches: residual reinforcement learning (ResRL) \cite{silver2018residual,johannink2019residual}. This technique learns a correction on top of a model-based controller by modifying a joint torque or a position target \cite{cheng2025rambo,jeon2025residualmpc}.
@@ -92,13 +93,13 @@ IS-MPC \cite{scianca2020ismpc} enforces the boundedness condition of \cite{lanar
 Dallard \emph{et al.} \cite{dallard2025adios} closed the loop on the measured state and added a pre-optimization of the footstep timing, which is essential for push recovery \cite{khadiv2020timing}.
 
 \emph{Whole-body MPC and Riccati feedback.}
-DDP \cite{mayne1966ddp,tassa2012synthesis} solves the whole-body problem fast enough for MPC and has been demonstrated on a torque-controlled humanoid \cite{dantec2022wbmpc}.
+DDP \cite{mayne1966ddp,li2004ilqr,tassa2012synthesis} solves the whole-body problem fast enough for MPC and has been demonstrated on a torque-controlled humanoid \cite{dantec2022wbmpc}.
 Its Riccati gains are a first-order approximation of how the MPC solution changes with the state \cite{dantec2022firstorder}, so they can run the feedback faster than the solver.
 To be usable on hardware, they must be consistent with the contact constraints \cite{grandia2019feedback}.
 
 \emph{RL combined with model-based control.}
-A policy can track a model-based plan \cite{jenelten2024dtc,kang2023rlmodel} or correct a model-based controller \cite{cheng2025rambo,jeon2025residualmpc}.
-Closer to our approach, a policy can also set the parameters of an MPC: the decision variables of a quadrotor MPC \cite{song2022policysearch}, a learned cost in a differentiable MPC \cite{amos2018diffmpc,romero2024acmpc}, or in theory any parameter of an MPC used as a policy \cite{gros2020nmpcrl}.
+A policy can imitate or track a model-based plan \cite{carius2020mpcnet,reske2021imitation,jenelten2024dtc,kang2023rlmodel}, plan footsteps for a model-based controller \cite{gangapurwala2022rloc}, or correct a model-based controller \cite{cheng2025rambo,jeon2025residualmpc}.
+Closer to our approach, learning can set the parameters of an MPC \cite{hewing2020lbmpc}: the decision variables of a quadrotor MPC \cite{song2022policysearch}, a learned cost in a differentiable MPC \cite{amos2018diffmpc,romero2024acmpc}, or in theory any parameter of an MPC used as a policy \cite{gros2020nmpcrl}.
 These methods solve the MPC again with the new parameters, which changes the planned motion.
 Our refiner keeps the plan and changes only the reaction, decoding the weights into new gains with one backward pass between two solves.
 The idea is close to variable impedance learning \cite{buchli2011variable} and LQR weight tuning \cite{marco2016lqr}, applied online to the time-varying gains of a whole-body MPC, which makes it more applicable to multi-joint robots that demand efficient computation.
@@ -388,7 +389,7 @@ We leave this to the policy, which observes the contact flags and the step phase
 Since a touchdown can move at short notice, each coordinate of $\delta x$ is also slew-rate limited at 1\,kHz, so any remaining jump becomes a short ramp.
 The shift is decoded only for the current node, with the Jacobians at $\xb_i$ and the contacts $\mathcal C_i$, and does not enter the backward pass.
 
-Since the Riccati policy is the first-order expansion of the MPC solution \cite{dantec2022firstorder}, the torque $K'\delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\delta x$: a learned bias on the state the controller sees.
+Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K'\delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\delta x$: a learned bias on the state the controller sees.
 It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\delta x$.
 With $\zeta_i=x_i\ominus\xb_i$ and $A_i,B_i$ the dynamics Jacobians, the error evolves as
 \begin{equation}
@@ -404,7 +405,7 @@ The refiner can choose a poor cost, but it cannot produce a gain with flipped si
 This is not a safety guarantee, however.
 The gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
 What keeps exploration safe are the bounds and rate limits on $\gamma$ and the slew-rate limit on $\delta x$.
-A safety check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl} could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds.
+A safety check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl} could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
 $K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics, which is required for using such gains on hardware \cite{grandia2019feedback}.
 
 \emph{Compact and meaningful.} The latent representation $\gamma$ has 22 numbers, each with a physical meaning that can be bounded and inspected.
