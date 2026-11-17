@@ -517,7 +517,7 @@ In simulation, the robot walks at up to 0.5\,m/s, turns and walks backward with 
 Most remaining failures are sideways pushes whose recovery steps land short of the DCM.
 
 Since a whole-body MPC is optimal only for its model, we proposed a control policy refiner that modifies the gain and set-point of its feedback policy through 22 cost-weight scales and set-point shifts, decoded by one backward pass of the solver, which keeps learning structured and low-dimensional.
-Replanning twice as often recovered 14 more pushes, which shows how much depends on the feedback between solves; training the refiner is our next step.
+Training the refiner is our next step.
 
 % slightly smaller reference list (small deviation from the IEEE template, to stay within 6 pages)
 \begingroup
