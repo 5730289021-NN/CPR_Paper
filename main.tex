@@ -461,11 +461,10 @@ Warm-started solves stop at ten iterations; only the cold first solve takes long
 Controller & Random & Restarts & Pushes, & Pushes,\\
  & (falls) & (falls) & one step & full stride\\
 \midrule
-Open-loop gait, FDDP, 10\,Hz & 1/28 & 0/12 & 28/48 & 50/104\\
-+ step adaptation & 0/28 & 0/12 & 30/48 & 57/104\\
-+ Box-FDDP within the torque limits & 0/28 & 0/12 & 32/48 & 64/104\\
-+ measured ZMP support & 0/28 & 0/12 & 35/48 & 66/104\\
-+ whole-body MPC at 20\,Hz (ours) & 0/28 & 0/12 & \textbf{37/48} & \textbf{80/104}\\
+Open-loop gait, FDDP & 0/28 & 0/12 & 34/48 & 69/104\\
++ step adaptation & 0/28 & 0/12 & 39/48 & 79/104\\
++ Box-FDDP within the torque limits & 0/28 & 0/12 & 38/48 & 79/104\\
++ measured ZMP support (ours) & 0/28 & 0/12 & 37/48 & 80/104\\
 \midrule
 ismpc\_walking \cite{mc_ismpcwalking} (position control) & 1/28 & 0/12 & 36/48 & 70/104\\
 \bottomrule
@@ -478,13 +477,10 @@ ismpc\_walking \cite{mc_ismpcwalking} (position control) & 1/28 & 0/12 & 36/48 &
 
 \subsection{Robustness}
 Table~\ref{tab:robust} tests every row on the same 28 random command schedules, 12 restarts from standing and two push sets.
-Step adaptation removes the only fall on the random schedules and adds 2 one-step and 7 full-stride pushes; no variant falls on the restarts.
-Box-FDDP adds 2 and 7 more; in a separate sweep, the gain came from the solver, since bounding the torques at the real limits changed nothing measurable and bounding them at 90\,\% of the limits lost five pushes.
-Centering the ZMP limits on the measured feet adds 3 and 2.
+No variant falls on the schedules or the restarts.
+Step adaptation is the main gain: it adds 5 one-step and 10 full-stride pushes.
+Box-FDDP within the torque limits and centering the ZMP limits on the measured feet change the push counts by one at most, which is within the noise; they are kept because they keep the planned torques and ZMP within what the robot can realize.
 
-The one-step set covers only one stance phase of our 0.8\,s steps and turned out to favor it: over a full stride, the same controller recovers only 66 of 104 pushes.
-Running the whole-body MPC at 20\,Hz instead of 10\,Hz, with the same 0.5\,s horizon in 20 knots of 25\,ms, raises this to 80 of 104 (20 newly recovered, 6 lost) and the one-step set to 37 of 48, without any fall on the schedules or restarts.
-In a separate sweep, the gain came from the rate, not the knots: 25\,ms knots at 10\,Hz recovered only 53 of 104.
 The open-source ismpc\_walking controller \cite{mc_ismpcwalking}, run on the same machine and scenarios with position control, recovers 36 of 48 and 70 of 104 pushes, ten of them by stopping; with its default gait, it walks at up to 0.28\,m/s.
 It runs in real time, so its results vary more between runs (79 of 104 in an earlier run).
 All forward and all but one backward pushes are recovered; 23 of our 24 failures come from sideways pushes.
@@ -492,14 +488,10 @@ All forward and all but one backward pushes are recovered; 23 of our 24 failures
 \subsection{What the refiner has to correct}
 The results point to three weaknesses, each of which maps to a part of $\gamma$, and to one that lies outside its reach.
 
-\emph{Execution after a strong push.} After a 40\,N\,s sideways push, the gait generator plans the recovery step and the foot lands about 0.3\,s later with the DCM inside it.
-At 10\,Hz, the robot still failed during the execution.
-The stance foot slid by 4.6\,cm under the large lateral force, the swing foot lagged its moving target by up to 8.5\,cm and landed with 3\,kN, and a joint then stayed at its torque limit.
-Over the full stride, 25 of the 38 failures at 10\,Hz happened in the execution before any recovery step, with a joint, mostly an ankle, at its torque limit about 0.17\,s after the push.
+\emph{Execution after a strong push.} Without step adaptation, 11 of the 35 full-stride failures happen before any recovery step, with a joint at its torque limit about 0.11\,s after the push.
 The wrench cone is only a penalty in the OCP, and the gains are tuned for normal walking.
-Fixed caps on the ankle torques in the OCP did not help (three to seven pushes fewer).
-Running the MPC at 20\,Hz leaves only 1 of 24 failures of this kind: a feedback policy refreshed twice as often recovers 14 more pushes, which shows how much depends on the policy between two solves.
-Higher torque weights on the leg in stance and a higher foot weight during the swing are the kind of change the refiner can make in that situation, without the cost of solving more often.
+Step adaptation leaves 2 of 24 failures of this kind, but the first fraction of a second after a push is decided by the feedback policy between two solves.
+Higher torque weights on the leg in stance and a higher foot weight during the swing are the kind of change the refiner can make in that situation.
 
 \emph{Tracking the LIPM.} The CoM path of the LIPM fits the robot's sideways motion well but explains only 39\,\% of its forward CoM acceleration.
 Tracking it stiffly forces the robot away from its own dynamics: raising the forward and sideways CoM weights to 5000 made seven of eight random schedules fail.
@@ -508,7 +500,7 @@ A set-point shift can counter the systematic part of this mismatch with a steady
 \emph{No single set of weights.} In earlier sweeps without step adaptation, every weight setting failed on about 20\,\% of fresh random schedules, and the same schedules failed under all of them.
 Weight tuning had reached its limit, which is the motivation for weights that change with the situation.
 
-\emph{Recovery steps that fall short.} At 20\,Hz, 23 of the 24 failures come 0.8\,s or more after the push, after a median of two recovery steps, and only two of them ever place a foot beyond the measured DCM, against 56 of the 80 recovered pushes (median margin 29\,mm).
+\emph{Recovery steps that fall short.} With the final controller, 22 of the 24 failures come 0.8\,s or more after the push, after a median of two recovery steps, and only one of them ever places a foot beyond the measured DCM, against 56 of the 80 recovered pushes (median margin 29\,mm).
 These failures need a longer or earlier step, which is the job of the gait generator and outside the reach of the refiner.
 
 \section{Conclusion}
