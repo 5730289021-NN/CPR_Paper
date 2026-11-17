@@ -214,7 +214,7 @@ where $\hat x$ is the measured state, $\mathcal C_i$ is the set of feet in conta
 Each stance foot is held by a 6D contact constraint, stabilized toward its reference placement via Baumgarte stabilization \cite{baumgarte1972stabilization} ($e_f$ is the placement error, $k_p=10$, $k_d=2$).
 The running cost is
 \begin{align}
-\ell(x,u)&=\tfrac12\Big(w_G\,\|c(q)-c^{\mathrm{ref}}\|^2_{W_G}\nonumber\\
+\ell(x,u)&=\tfrac12\Big(w_C\,\|c(q)-c^{\mathrm{ref}}\|^2_{W_C}\nonumber\\
 &\quad+w_F\textstyle\sum_{f}\|\log(M_f^{\mathrm{ref}\,-1}M_f(q))\|^2_{W_F}\nonumber\\
 &\quad+w_B\,\|\log(R_B^{0\,\top}R_B(q))\|^2+w_J\,\|q_J-q_J^0\|^2_{W_J}\nonumber\\
 &\quad+w_V\,\|v\|^2_{W_V}+\textstyle\sum_{g=1}^{6}w_{\tau_g}\|u_g\|^2\nonumber\\
@@ -223,13 +223,13 @@ The running cost is
 \end{align}
 and the terminal cost keeps the CoM, foot and state terms without the torque and wrench-cone terms,
 \begin{align}
-\ell_N(x)&=\tfrac12\Big(w_G^N\,\|c(q)-c^{\mathrm{ref}}\|^2_{W_G}\nonumber\\
+\ell_N(x)&=\tfrac12\Big(w_C^N\,\|c(q)-c^{\mathrm{ref}}\|^2_{W_C}\nonumber\\
 &\quad+w_F\textstyle\sum_{f}\|\log(M_f^{\mathrm{ref}\,-1}M_f(q))\|^2_{W_F}\nonumber\\
 &\quad+w_B\,\|\log(R_B^{0\,\top}R_B(q))\|^2+w_J\,\|q_J-q_J^0\|^2_{W_J}\nonumber\\
 &\quad+w_V\,\|v\|^2_{W_V}\Big),
 \label{eq:costterm}
 \end{align}
-with a larger CoM weight $w_G^N$.
+with a larger CoM weight $w_C^N$.
 The terms penalize the CoM $c$, the placements $M_f\in SE(3)$ of the two feet, the base orientation $R_B$, the joint angles $q_J$, the velocities and the torques $u_g$ of six joint groups (hip (3 joints), knee (1) and ankle (2) of the left and right legs).
 The references $c^{\mathrm{ref}}$ and $M_f^{\mathrm{ref}}$ come from the gait generator, and $R_B^0,q_J^0$ are the standing posture.
 The last term of \eqref{eq:costwb} tries to keep each contact wrench inside its cone $A_f\lambda_f\le0$ (unilateral force, friction coefficient 1 and a CoP within a $0.18\times0.09$\,m rectangle, about 50\,\% of the area of the actual sole).
@@ -256,7 +256,7 @@ $K_i\in\R^{12\times36}$ maps the state error, made of the errors of the base pos
 \toprule
 Term & Weight & Per-component weight\\
 \midrule
-CoM & $w_G=1$, $w_G^N=5$ & $W_G=\mathrm{diag}(350,350,10^4)$\\
+CoM & $w_C=1$, $w_C^N=5$ & $W_C=\mathrm{diag}(350,350,10^4)$\\
 Feet & $w_F=40$ & $W_F=\mathrm{diag}(50,50,200,50,50,50)$\\
 Base orientation & $w_B=200$ & --\\
 Joint posture & $w_J=1$ & $W_J$: 100 on the hip yaw, 1 otherwise\\
@@ -279,7 +279,7 @@ At the node rate of 40\,Hz, the refiner (Fig.~\ref{fig:stack}) adjusts both part
 \tau=\ub+K'\,\big((\xb\oplus\delta x)\ominus x\big).
 \label{eq:refined}
 \end{equation}
-It outputs a latent representation $\gamma=(\gamma_w,\gamma_x)$, and a fixed decoder maps $\gamma_w$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\delta x$ of the set-point.
+It outputs a latent representation $\gamma=(\gamma_K,\gamma_x)$, and a fixed decoder maps $\gamma_K$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\delta x$ of the set-point.
 Since the decoder is not learned, RL only explores the latent space, and $\gamma=0$ gives exactly the MPC controller.
 Since the network is initialized to output zero, training starts from the behavior of the model-based controller of Section~\ref{sec:base} alone.
 
@@ -293,12 +293,12 @@ Since the network is initialized to output zero, training starts from the behavi
 \node[blk, minimum width=17mm] (mpc) at (0,0) {MPC\\(Fig.~\ref{fig:base})\\20\,Hz};
 \node[blk, minimum width=30mm] (fb) at (35,0) {Feedback policy, 1\,kHz\\$\ub+K'\big((\xb\oplus\delta x)\ominus x\big)$};
 \node[blk, minimum width=11mm] (rob) at (68,0) {Robot};
-\node[dec, minimum width=29mm] (bp) at (13.5,20) {Riccati backward pass\\$\gamma_w\mapsto K'$};
+\node[dec, minimum width=29mm] (bp) at (13.5,20) {Riccati backward pass\\$\gamma_K\mapsto K'$};
 \node[dec, minimum width=27mm] (pr) at (46.5,20) {Leg completion\\$\gamma_x\mapsto\delta x$};
 \node[draw=orange!70!black, dashed, rounded corners=3pt, inner sep=3.5pt, fit=(bp)(pr)] (decgrp) {};
 \node[lab, text=orange!60!black, anchor=north east] at ($(decgrp.south east)+(0,-0.5)$) {\textbf{Decoder}};
 \node[res, minimum width=40mm] (pol) at (28,41) {\textbf{Refiner} $\pi_\theta$, 40\,Hz};
-\draw[->, blue!60!black, thick] (pol.south -| 16,0) -- node[lab, left, text=blue!60!black] {weight scales\\$\gamma_w$ (10)} (16,24.5);
+\draw[->, blue!60!black, thick] (pol.south -| 16,0) -- node[lab, left, text=blue!60!black] {weight scales\\$\gamma_K$ (10)} (16,24.5);
 \draw[->, blue!60!black, thick] (pol.south -| 42,0) -- node[lab, right, text=blue!60!black] {set-point shift\\$\gamma_x$ (12)} (42,24.5);
 \draw[->] (4,6) -- node[lab, left] {$\xb,\ub$,\\stored\\derivatives} (4,15.5);
 \draw[->] (25,15.5) -- node[lab, right, pos=0.45] {$K'$} (25,4.5);
@@ -320,9 +320,9 @@ The decoder uses a copy $\ell'$ of the cost with scaled weights to recompute the
 Each scale multiplies one weight of \eqref{eq:costwb}:
 \begin{align}
 w'_k&=w_k\,e^{\gamma_k},\qquad k\in\{B,J,V,F,\tau_1,\dots,\tau_6\},\label{eq:scale}\\
-w'_G&=w_G,\qquad w'_W=w_W.\label{eq:scaleG}
+w'_C&=w_C,\qquad w'_W=w_W.\label{eq:scaleG}
 \end{align}
-Here $\gamma_w=(\gamma_B,\gamma_J,\gamma_V,\gamma_F,\gamma_{\tau_1},\dots,\gamma_{\tau_6})$ contains four tracking scales (base orientation, joint posture, velocity and foot terms) and six torque scales (one per joint group).
+Here $\gamma_K=(\gamma_B,\gamma_J,\gamma_V,\gamma_F,\gamma_{\tau_1},\dots,\gamma_{\tau_6})$ contains four tracking scales (base orientation, joint posture, velocity and foot terms) and six torque scales (one per joint group).
 Since multiplying all weights by a common factor only scales every $Q$ and $V$ in \eqref{eq:backward} and leaves $K'$ unchanged, we fix the CoM weight as the reference. As the CoM reference is the output of the LIPM model, we prefer the CoM to remain the main objective. Aside from that, we keep the cone penalty as it is.
 
 The decoder then runs the backward pass once more along the current trajectory, with $\ell'$ in place of $\ell$.
@@ -354,8 +354,8 @@ In this design, only the gains are replaced, so the decoded gains change the rea
 \toprule
 Part & Content & Size\\
 \midrule
-$\gamma_w$, tracking & base orientation, posture, velocities, feet (CoM fixed) & 4\\
-$\gamma_w$, torque & hip, knee, ankle; left and right leg & 6\\
+$\gamma_K$, tracking & base orientation, posture, velocities, feet (CoM fixed) & 4\\
+$\gamma_K$, torque & hip, knee, ankle; left and right leg & 6\\
 $\gamma_x$ & base and swing-foot pose shifts; leg joints follow & 12\\
 \midrule
 \multicolumn{2}{@{}l}{Total, decoded into $K'\in\R^{12\times36}$ per node and $\delta x\in\R^{36}$} & 22\\
