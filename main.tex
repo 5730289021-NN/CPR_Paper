@@ -376,7 +376,14 @@ P_i&=Q_{xx}-Q_{ux}\T K'_i &&\to& \;\delta P_i&=M\T\delta P_{i+1}M
 \end{alignedat}
 \label{eq:dDDP}
 \end{equation}
-The fourth line follows from $\delta K'_i=Q_{uu}^{-1}(\delta Q_{ux}-\delta Q_{uu}K'_i)$.
+For the fourth line, differentiating $Q_{uu}K'_i=Q_{ux}$ gives $\delta Q_{uu}K'_i+Q_{uu}\,\delta K'_i=\delta Q_{ux}$; solving for $\delta K'_i$ and substituting the second and third lines,
+\[
+\begin{aligned}
+\delta K'_i&=Q_{uu}^{-1}(\delta Q_{ux}-\delta Q_{uu}K'_i)\\
+&=Q_{uu}^{-1}(B\T\delta P_{i+1}A-B\T\delta P_{i+1}BK'_i)\\
+&=Q_{uu}^{-1}B\T\delta P_{i+1}(A-BK'_i)=Q_{uu}^{-1}B\T\delta P_{i+1}M.
+\end{aligned}
+\]
 For the last one, $P_i$ equals $Q_{xx}-Q_{ux}\T K'_i-K'^{\top}_iQ_{ux}+K'^{\top}_iQ_{uu}K'_i$, which is stationary in $K'_i$ at the optimal gain, so the change of $K'_i$ does not contribute to first order.
 Chaining the last line from the terminal change $\delta P'_N$ down to node 1 gives $\delta P_1=\Phi\T\delta P'_N\Phi$, and the fourth line at node 0 then gives
 \begin{equation}
