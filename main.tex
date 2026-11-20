@@ -325,7 +325,7 @@ w'_G&=w_G,\qquad w'_W=w_W.\label{eq:scaleG}
 \end{align}
 Here $\gamma_K=(\gamma_B,\gamma_J,\gamma_V,\gamma_F,\gamma_{\tau_1},\dots,\gamma_{\tau_6})$ contains four tracking scales (base orientation, joint posture, velocity and foot terms) and six torque scales (one per joint group).
 These scales act on the running cost only; the terminal cost \eqref{eq:costterm} keeps its weights and is modified through $\gamma_P$ in Section~\ref{sec:terminal}.
-Since multiplying all weights by a common factor only scales every $Q$ and $V$ in \eqref{eq:backward} and leaves $K'$ unchanged, we fix the CoM weight as the reference. As the CoM reference is the output of the LIPM model, we prefer the CoM to remain the main objective. Aside from that, we keep the cone penalty as it is.
+Since multiplying all weights by a common factor only scales every $Q$ and $V$ in \eqref{eq:backward} and leaves $K'$ unchanged, we fix the CoM weight as the reference. As the CoM reference is the output of the LIPM model, we prefer the CoM to remain the main objective. The wrench-cone penalty is not scaled either: it stands in for a constraint that the solver cannot impose, not for a trade-off, and a learned scale would let the refiner relax contact feasibility. It is also zero inside the cone, so it affects the gains only at the edge of the cone.
 
 The decoder then runs the backward pass once more along the current trajectory, with $\ell'$ in place of $\ell$.
 Under the Gauss--Newton approximation used by the solver, the cost Hessian is linear in the weights, $\ell'_{xx}=\sum_c w'_c\,J_c\T W_cJ_c$ (and similarly for $\ell'_{ux},\ell'_{uu}$).
@@ -351,6 +351,7 @@ Because \eqref{eq:backward} uses only Hessians and dynamics Jacobians and no cos
 \label{eq:lq}
 \end{align}
 with $A_i=f_x$, $B_i=f_u$ and $P'_N$ from \eqref{eq:terminal}, whose optimal policy is $\delta u_i=-K'_i\delta x_i$, i.e., \eqref{eq:riccati} with $K'$.
+$A_i$ and $B_i$ are the Jacobians of the contact-constrained dynamics of node $i$, so the contact schedule of the plan is part of \eqref{eq:lq}; the state has the same dimension in every contact mode, so $V_{xx}$ carries across switches. Like the gains of the MPC, $K'$ assumes that contacts switch at the planned times.
 $K'$ is optimal for \eqref{eq:lq} whether or not $\xb$ is optimal for $\ell'$, and the Gauss--Newton Hessians are positive semidefinite at any point: $\ell'$ designs the reaction to deviations from the plan, not the plan itself.
 The decoder therefore discards the feedforward term and the plan update that a full DDP step on $\ell'$ would imply; only the gains are replaced, so the decoded gains change the reaction but not the planned motion, which is what bounds the effect of the refiner.
 
