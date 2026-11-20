@@ -343,8 +343,16 @@ V_{xx}&=Q_{xx}-Q_{ux}\T K',
 where $V^{+}_{xx}$ is the value Hessian of the next node, and the recursion starts from $V_{xx}=P'_N$ at node $N$ \eqref{eq:terminal}.
 
 The backward pass runs only once to produce the gains along that trajectory.
-Because \eqref{eq:backward} uses only Hessians and dynamics Jacobians and no cost gradients, it is the time-varying LQR around the trajectory with the new weights.
-In this design, only the gains are replaced, so the decoded gains change the reaction but not the planned motion.
+Because \eqref{eq:backward} uses only Hessians and dynamics Jacobians and no cost gradients, it solves the time-varying LQ problem for the deviation $\zeta_i=x_i\ominus\xb_i$, $\delta u_i=u_i-\ub_i$ from the trajectory,
+\begin{align}
+\min_{\delta u}\ &\textstyle\sum_{i=0}^{N-1}\tfrac12\big(\zeta_i\T\ell'_{xx}\zeta_i+2\,\delta u_i\T\ell'_{ux}\zeta_i+\delta u_i\T\ell'_{uu}\delta u_i\big)\nonumber\\
+&+\tfrac12\,\zeta_N\T P'_N\zeta_N\nonumber\\
+\text{s.t.}\ &\zeta_{i+1}=A_i\zeta_i+B_i\,\delta u_i,
+\label{eq:lq}
+\end{align}
+with $A_i=f_x$, $B_i=f_u$ and $P'_N$ from \eqref{eq:terminal}, whose optimal policy is $\delta u_i=-K'_i\zeta_i$, i.e., \eqref{eq:riccati} with $K'$.
+$K'$ is optimal for \eqref{eq:lq} whether or not $\xb$ is optimal for $\ell'$, and the Gauss--Newton Hessians are positive semidefinite at any point: $\ell'$ designs the reaction to deviations from the plan, not the plan itself.
+The decoder therefore discards the feedforward term and the plan update that a full DDP step on $\ell'$ would imply; only the gains are replaced, so the decoded gains change the reaction but not the planned motion, which is what bounds the effect of the refiner.
 
 \subsection{Terminal curvature}
 \label{sec:terminal}
@@ -355,11 +363,12 @@ P'_N=P_N+\textstyle\sum_{k=1}^{4}\gamma_{P,k}\,\Pi_k,\qquad \gamma_{P,k}\in[0,\b
 \label{eq:terminal}
 \end{equation}
 where the blocks $k$ are the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), and $\Pi_k=(\mathrm{tr}\,P_{N,kk}/n_k)\,I_{n_k}$ on block $k$ and zero elsewhere, so that $\gamma_{P,k}$ is relative to the curvature the MPC already uses.
-With $A_i=f_x$, $B_i=f_u$ at node $i$, a change of $P'_N$ reaches the applied gain, to first order, as
+A change of $P'_N$ reaches the applied gain, to first order, as
 \begin{equation}
-\delta K'_0=Q_{uu}^{-1}B_0\T\,\Phi\T\delta P'_N\,\Phi\,(A_0-B_0K'_0),\quad \Phi=\textstyle\prod_{i=1}^{N-1}(A_i-B_iK'_i).
+\delta K'_0=Q_{uu}^{-1}B_0\T\,\Phi\T\delta P'_N\,\Phi\,(A_0-B_0K'_0),
 \label{eq:dK}
 \end{equation}
+where $\Phi=\prod_{i=1}^{N-1}(A_i-B_iK'_i)$ is the closed-loop transition over the horizon.
 Modes that the closed loop damps within the horizon are filtered out by $\Phi$, and only the slow ones, mainly the balance of the base and the CoM, are affected, so four block increments replace the 666 entries of $P'_N$.
 If $P'_N$ were the value Hessian of a longer problem, $K'_0$ would be its gain exactly; adding curvature lets the refiner approach longer-horizon gains without a longer solve, which the running-weight scales cannot do.
 The increments are one-sided: $P'_N\succeq P_N$, and since the Riccati recursion is monotone, $V'_{xx,i}\succeq V_{xx,i}$ at every node, so the refiner can only make the cost-to-go more conservative than that of the MPC.
