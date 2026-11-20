@@ -41,8 +41,8 @@
 A model predictive controller (MPC) based on differential dynamic programming drives a humanoid robot between two solves with a feedback policy made of a state set-point and a gain matrix.
 This policy is optimal for the model, but not for the real-world robot.
 We propose a \emph{control policy refiner} that corrects the gain and the set-point to make the system more robust to uncertainty.
-Since the gain matrix is too large to learn directly, the refiner outputs a latent representation of cost-weight scales and a set-point shift.
-Then, one Riccati backward pass along the current trajectory turns the scaled weights into a full gain matrix.
+Since the gain matrix is too large to learn directly, the refiner outputs a latent representation of cost-weight scales, terminal-curvature increments and a set-point shift.
+Then, one Riccati backward pass along the current trajectory turns the scaled weights and the augmented terminal value into a full gain matrix.
 The gains that the refiner produces are therefore the optimal feedback of a local problem, and the set-point shift is designed to respect the contact constraints.
 This keeps exploration structured and small.
 For the base controller, we apply IS-MPC to provide the center of mass (CoM) and gait solution, and feed it as a reference to a lower-body MPC. The upper body is stabilized with a linear quadratic regulator (LQR).
@@ -81,7 +81,7 @@ This policy consists of the Riccati gains and a set-point.
 We aim to train a residual policy, the \emph{refiner}, over the gain and set-point of this closed-loop feedback controller, so that the integrated system becomes more robust to uncertainty.
 
 Nevertheless, learning the gains directly is impractical. In our whole-body MPC, each Riccati gain maps the 36-dimensional state error of the floating base and the twelve leg joints, in position and velocity, to twelve joint torque commands, so a policy would have to learn $12\times36=432$ elements at every node.
-To solve this problem, we propose that the refiner acts on the \emph{cost} instead: once DDP performs a single backward pass with the modified cost, the new gain is computed. Together with a set-point shift, this approach drastically reduces the learned variables to a latent representation $\gamma$ of 10 cost-weight scales for the gain and 12 shifts for the set-point, 22 numbers in total.
+To solve this problem, we propose that the refiner acts on the \emph{cost} instead: once DDP performs a single backward pass with the modified cost, the new gain is computed. Together with a set-point shift, this approach drastically reduces the learned variables to a latent representation $\gamma$ of 10 cost-weight scales and 4 terminal-curvature increments for the gain and 12 shifts for the set-point, 26 numbers in total.
 
 This paper presents the model-based controller in Section~\ref{sec:base}, the refiner in Section~\ref{sec:method}, and the simulation results of the model-based controller in Section~\ref{sec:results}.
 
@@ -103,6 +103,7 @@ Closer to our approach, learning can set the parameters of an MPC \cite{hewing20
 These methods solve the MPC again with the new parameters, which changes the planned motion.
 Our refiner keeps the plan and changes only the reaction, decoding the weights into new gains with one backward pass between two solves.
 The idea is close to variable impedance learning \cite{buchli2011variable} and LQR weight tuning \cite{marco2016lqr}, applied online to the time-varying gains of a whole-body MPC, which makes it more applicable to multi-joint robots that demand efficient computation.
+A learned terminal value can also extend the effective horizon of a short-horizon MPC \cite{lowrey2019polo}; we restrict it to one-sided block increments of the terminal curvature.
 
 \section{Model-based Controller}
 \label{sec:base}
@@ -276,10 +277,10 @@ According to \eqref{eq:riccati}, the set-point $\xb$ is the state the plan expec
 Since this control law gives the actual joint torques, it determines the behavior at the small scale, which has to cope with a push, a mismatched mass distribution or rough terrain.
 At the node rate of 40\,Hz, the refiner (Fig.~\ref{fig:stack}) adjusts both parts:
 \begin{equation}
-\tau=\ub+K'\,\big((\xb\oplus\delta x)\ominus x\big).
+\tau=\ub+K'\,\big((\xb\oplus\Delta x)\ominus x\big).
 \label{eq:refined}
 \end{equation}
-It outputs a latent representation $\gamma=(\gamma_K,\gamma_x)$, and a fixed decoder maps $\gamma_K$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\delta x$ of the set-point.
+It outputs a latent representation $\gamma=(\gamma_K,\gamma_P,\gamma_x)$, and a fixed decoder maps $\gamma_K$ and $\gamma_P$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\Delta x$ of the set-point.
 Since the decoder is not learned, RL only explores the latent space, and $\gamma=0$ gives exactly the MPC controller.
 Since the network is initialized to output zero, training starts from the behavior of the model-based controller of Section~\ref{sec:base} alone.
 
@@ -291,25 +292,25 @@ Since the network is initialized to output zero, training starts from the behavi
   dec/.style={draw, rounded corners=1.5pt, minimum height=9mm, align=center, inner sep=2pt, fill=orange!14, draw=orange!70!black},
   lab/.style={font=\scriptsize, align=center, inner sep=1pt}]
 \node[blk, minimum width=17mm] (mpc) at (0,0) {MPC\\(Fig.~\ref{fig:base})\\20\,Hz};
-\node[blk, minimum width=30mm] (fb) at (35,0) {Feedback policy, 1\,kHz\\$\ub+K'\big((\xb\oplus\delta x)\ominus x\big)$};
+\node[blk, minimum width=30mm] (fb) at (35,0) {Feedback policy, 1\,kHz\\$\ub+K'\big((\xb\oplus\Delta x)\ominus x\big)$};
 \node[blk, minimum width=11mm] (rob) at (68,0) {Robot};
-\node[dec, minimum width=29mm] (bp) at (13.5,20) {Riccati backward pass\\$\gamma_K\mapsto K'$};
-\node[dec, minimum width=27mm] (pr) at (46.5,20) {Leg completion\\$\gamma_x\mapsto\delta x$};
+\node[dec, minimum width=29mm] (bp) at (13.5,20) {Riccati backward pass\\$(\gamma_K,\gamma_P)\mapsto K'$};
+\node[dec, minimum width=27mm] (pr) at (46.5,20) {Leg completion\\$\gamma_x\mapsto\Delta x$};
 \node[draw=orange!70!black, dashed, rounded corners=3pt, inner sep=3.5pt, fit=(bp)(pr)] (decgrp) {};
 \node[lab, text=orange!60!black, anchor=north east] at ($(decgrp.south east)+(0,-0.5)$) {\textbf{Decoder}};
 \node[res, minimum width=40mm] (pol) at (28,41) {\textbf{Refiner} $\pi_\theta$, 40\,Hz};
-\draw[->, blue!60!black, thick] (pol.south -| 16,0) -- node[lab, left, text=blue!60!black] {weight scales\\$\gamma_K$ (10)} (16,24.5);
+\draw[->, blue!60!black, thick] (pol.south -| 16,0) -- node[lab, left, text=blue!60!black] {weight scales,\\terminal curv.\\$\gamma_K,\gamma_P$ (14)} (16,24.5);
 \draw[->, blue!60!black, thick] (pol.south -| 42,0) -- node[lab, right, text=blue!60!black] {set-point shift\\$\gamma_x$ (12)} (42,24.5);
 \draw[->] (4,6) -- node[lab, left] {$\xb,\ub$,\\stored\\derivatives} (4,15.5);
 \draw[->] (25,15.5) -- node[lab, right, pos=0.45] {$K'$} (25,4.5);
-\draw[->] (45,15.5) -- node[lab, right, pos=0.45] {$\delta x$} (45,4.5);
+\draw[->] (45,15.5) -- node[lab, right, pos=0.45] {$\Delta x$} (45,4.5);
 \draw[->] (mpc) -- node[lab, above] {$\xb,\ub$} (fb);
 \draw[->] (fb) -- node[lab, above] {$\tau$} (rob);
 \draw[->] (rob.south) -- (68,-9) -| node[lab, pos=0.25, below] {state $x$} (mpc.south);
 \draw[->] (68,-9) -| (fb.south);
 \draw[->] (rob.north) -- (68,41) -- node[lab, above] {$x$, error history} (pol.east);
 \end{tikzpicture}
-\caption{The refiner stack. The MPC of Fig.~\ref{fig:base} is treated as one block. The refiner outputs 22 numbers. The decoder turns them into a full gain matrix $K'$ by one backward pass of the solver and into a contact-consistent set-point shift $\delta x$.}
+\caption{The refiner stack. The MPC of Fig.~\ref{fig:base} is treated as one block. The refiner outputs 26 numbers. The decoder turns them into a full gain matrix $K'$ by one backward pass of the solver and into a contact-consistent set-point shift $\Delta x$.}
 \label{fig:stack}
 \end{figure}
 
@@ -323,6 +324,7 @@ w'_j&=w_j\,e^{\gamma_j},\qquad j\in\{B,J,V,F,\tau_1,\dots,\tau_6\},\label{eq:sca
 w'_G&=w_G,\qquad w'_W=w_W.\label{eq:scaleG}
 \end{align}
 Here $\gamma_K=(\gamma_B,\gamma_J,\gamma_V,\gamma_F,\gamma_{\tau_1},\dots,\gamma_{\tau_6})$ contains four tracking scales (base orientation, joint posture, velocity and foot terms) and six torque scales (one per joint group).
+These scales act on the running cost only; the terminal cost \eqref{eq:costterm} keeps its weights and is modified through $\gamma_P$ in Section~\ref{sec:terminal}.
 Since multiplying all weights by a common factor only scales every $Q$ and $V$ in \eqref{eq:backward} and leaves $K'$ unchanged, we fix the CoM weight as the reference. As the CoM reference is the output of the LIPM model, we prefer the CoM to remain the main objective. Aside from that, we keep the cone penalty as it is.
 
 The decoder then runs the backward pass once more along the current trajectory, with $\ell'$ in place of $\ell$.
@@ -338,11 +340,40 @@ K'&=Q_{uu}^{-1}Q_{ux},\nonumber\\
 V_{xx}&=Q_{xx}-Q_{ux}\T K',
 \label{eq:backward}
 \end{align}
-where $V^{+}_{xx}$ is the value Hessian of the next node.
+where $V^{+}_{xx}$ is the value Hessian of the next node, and the recursion starts from $V_{xx}=P'_N$ at node $N$ \eqref{eq:terminal}.
 
 The backward pass runs only once to produce the gains along that trajectory.
-Because \eqref{eq:backward} uses only Hessians and dynamics Jacobians and no cost gradients, it is the time-varying LQR around the trajectory with the new weights.
-In this design, only the gains are replaced, so the decoded gains change the reaction but not the planned motion.
+Because \eqref{eq:backward} uses only Hessians and dynamics Jacobians and no cost gradients, it solves the time-varying LQ problem for the deviation $\delta x_i=x_i\ominus\xb_i$, $\delta u_i=u_i-\ub_i$ from the trajectory,
+\begin{align}
+\min_{\delta u}\ &\textstyle\sum_{i=0}^{N-1}\tfrac12\big(\delta x_i\T\ell'_{xx}\delta x_i+2\,\delta u_i\T\ell'_{ux}\delta x_i+\delta u_i\T\ell'_{uu}\delta u_i\big)\nonumber\\
+&+\tfrac12\,\delta x_N\T P'_N\delta x_N\nonumber\\
+\text{s.t.}\ &\delta x_{i+1}=A_i\delta x_i+B_i\,\delta u_i,
+\label{eq:lq}
+\end{align}
+with $A_i=f_x$, $B_i=f_u$ and $P'_N$ from \eqref{eq:terminal}, whose optimal policy is $\delta u_i=-K'_i\delta x_i$, i.e., \eqref{eq:riccati} with $K'$.
+$K'$ is optimal for \eqref{eq:lq} whether or not $\xb$ is optimal for $\ell'$, and the Gauss--Newton Hessians are positive semidefinite at any point: $\ell'$ designs the reaction to deviations from the plan, not the plan itself.
+The decoder therefore discards the feedforward term and the plan update that a full DDP step on $\ell'$ would imply; only the gains are replaced, so the decoded gains change the reaction but not the planned motion, which is what bounds the effect of the refiner.
+
+\subsection{Terminal curvature}
+\label{sec:terminal}
+With a horizon of only 0.5\,s, the terminal value Hessian $P_N=\nabla^2\ell_N$, which starts the recursion \eqref{eq:backward}, stands for everything that happens after the horizon.
+The refiner can add curvature to it, one block of the state error at a time:
+\begin{equation}
+P'_N=P_N+\textstyle\sum_{k=1}^{4}\gamma_{P,k}\,\Pi_k,\qquad \gamma_{P,k}\in[0,\bar\gamma_{P,k}],
+\label{eq:terminal}
+\end{equation}
+where the blocks $k$ are the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), and $\Pi_k=(\mathrm{tr}\,P_{N,kk}/n_k)\,I_{n_k}$ on block $k$ and zero elsewhere, so that $\gamma_{P,k}$ is relative to the curvature the MPC already uses.
+A change of $P'_N$ reaches the applied gain, to first order, as
+\begin{equation}
+\delta K'_0=Q_{uu}^{-1}B_0\T\,\Phi\T\delta P'_N\,\Phi\,(A_0-B_0K'_0),
+\label{eq:dK}
+\end{equation}
+where $\Phi=\prod_{i=1}^{N-1}(A_i-B_iK'_i)$ is the closed-loop transition over the horizon.
+Modes that the closed loop damps within the horizon are filtered out by $\Phi$, and only the slow ones, mainly the balance of the base and the CoM, are affected, so four block increments replace the 666 entries of $P'_N$.
+If $P'_N$ were the value Hessian of a longer problem, $K'_0$ would be its gain exactly; adding curvature lets the refiner approach longer-horizon gains without a longer solve, which the running-weight scales cannot do.
+The increments are one-sided: $P'_N\succeq P_N$, and since the Riccati recursion is monotone, $V'_{xx,i}\succeq V_{xx,i}$ at every node, so the refiner can only make the cost-to-go more conservative than that of the MPC.
+This ordering is not a stability guarantee: $P'_N\succeq P_N$ does not imply that $P'_N$ satisfies the terminal condition $P'_N\succeq\mathcal R(P'_N)$ of receding-horizon control \cite{bitmead1990adaptive}, where $\mathcal R$ is one step of \eqref{eq:backward}.
+Whether these directions are new with respect to $\gamma_K$ will be checked before training with the Jacobian of $K'_0$ with respect to $\gamma$.
 
 \begin{table}[t]
 \caption{Latent representation $\gamma$ of the refiner}
@@ -356,69 +387,74 @@ Part & Content & Size\\
 \midrule
 $\gamma_K$, tracking & base orientation, posture, velocities, feet (CoM fixed) & 4\\
 $\gamma_K$, torque & hip, knee, ankle; left and right leg & 6\\
+$\gamma_P$ & terminal curvature: base pose, joints, base vel., joint vel. & 4\\
 $\gamma_x$ & base and swing-foot pose shifts; leg joints follow & 12\\
 \midrule
-\multicolumn{2}{@{}l}{Total, decoded into $K'\in\R^{12\times36}$ per node and $\delta x\in\R^{36}$} & 22\\
+\multicolumn{2}{@{}l}{Total, decoded into $K'\in\R^{12\times36}$ per node and $\Delta x\in\R^{36}$} & 26\\
 \bottomrule
 \end{tabular}}
 \end{table}
 
 \subsection{Set-point shift}
-The refiner outputs a shift $\delta b$ of the base pose and a shift $\delta s$ of the swing-foot pose, $\gamma_x=(\delta b,\delta s)$, both as 6-vectors in the tangent space.
+The refiner outputs a shift $\Delta b$ of the base pose and a shift $\Delta s$ of the swing-foot pose, $\gamma_x=(\Delta b,\Delta s)$, both as 6-vectors in the tangent space.
 The decoder turns them into a shift of the leg joints.
 The set-point shift has the same layout as the state error,
 \begin{equation}
-\delta x=\begin{bmatrix}\delta b\\ \delta q_J\\ 0_{18}\end{bmatrix}\in\R^{36},
+\Delta x=\begin{bmatrix}\Delta b\\ \Delta q_J\\ 0_{18}\end{bmatrix}\in\R^{36},
 \label{eq:setpoint}
 \end{equation}
-with the base pose first ($\delta b\in\R^6$), then the twelve leg joints ($\delta q_J\in\R^{12}$), and a zero velocity part for the 18 base and joint velocities.
+with the base pose first ($\Delta b\in\R^6$), then the twelve leg joints ($\Delta q_J\in\R^{12}$), and a zero velocity part for the 18 base and joint velocities.
 The shift is applied at the current time only and held until the refiner outputs the next $\gamma_x$, so it is an offset rather than a trajectory, and a zero velocity part is consistent with it.
-To first order, a base shift $\delta b$ and a joint change $\delta q_{J,f}$ of leg $f$ move foot $f$ by
+To first order, a base shift $\Delta b$ and a joint change $\Delta q_{J,f}$ of leg $f$ move foot $f$ by
 \begin{equation}
-\delta p_f=J_{f,B}\,\delta b+J_{f,J}\,\delta q_{J,f},
+\Delta p_f=J_{f,B}\,\Delta b+J_{f,J}\,\Delta q_{J,f},
 \label{eq:footmotion}
 \end{equation}
 where $J_{f,B}$ and $J_{f,J}$ are the columns of the Jacobian of foot $f$ for the base and for the six joints of its leg.
-A foot in contact must not move, and a swinging foot moves by $\delta s$:
+A foot in contact must not move, and a swinging foot moves by $\Delta s$:
 \begin{equation}
-\delta p_f=\begin{cases}0 & f\ \text{in contact},\\ \delta s & f\ \text{swinging}.\end{cases}
+\Delta p_f=\begin{cases}0 & f\ \text{in contact},\\ \Delta s & f\ \text{swinging}.\end{cases}
 \label{eq:footshift}
 \end{equation}
 Away from a stretched knee, the $6\times6$ matrix $J_{f,J}$ is invertible, and solving \eqref{eq:footmotion} gives one rule for both legs,
 \begin{equation}
-\delta q_{J,f}=J_{f,J}^{-1}\big(\delta p_f-J_{f,B}\,\delta b\big).
+\Delta q_{J,f}=J_{f,J}^{-1}\big(\Delta p_f-J_{f,B}\,\Delta b\big).
 \label{eq:legcompletion}
 \end{equation}
-A base shift therefore bends the legs without moving any foot, and $\delta s$ moves only the swing foot.
-Together they span every set-point change that keeps the stance feet in place: of the 18 position coordinates of the base and legs, each stance foot removes six, leaving 12 in single support and the six of $\delta b$ in double support.
+A base shift therefore bends the legs without moving any foot, and $\Delta s$ moves only the swing foot.
+Together they span every set-point change that keeps the stance feet in place: of the 18 position coordinates of the base and legs, each stance foot removes six, leaving 12 in single support and the six of $\Delta b$ in double support.
 Unlike a projection onto the null space of the contact Jacobian, this reproduces the requested base shift exactly.
 
-At liftoff and touchdown, the row of a foot in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\delta s$ unless $\delta s=0$.
-We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\delta s\|$ in double support and near touchdown.
+At liftoff and touchdown, the row of a foot in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\Delta s$ unless $\Delta s=0$.
+We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\Delta s\|$ in double support and near touchdown.
 
-Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K'\delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\delta x$: a learned bias on the state the controller sees.
-It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\delta x$.
-With $\zeta_i=x_i\ominus\xb_i$ and $A_i,B_i$ the dynamics Jacobians, the error evolves as
+Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K'\Delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\Delta x$: a learned bias on the state the controller sees.
+It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\Delta x$.
+With the deviation $\delta x_i$ of \eqref{eq:lq}, the error evolves as
 \begin{equation}
-\zeta_{i+1}=(A_i-B_iK'_i)\,\zeta_i+B_iK'_i\,\delta x_i ,
+\delta x_{i+1}=(A_i-B_iK'_i)\,\delta x_i+B_iK'_i\,\Delta x_i ,
 \label{eq:cl}
 \end{equation}
 which stays bounded for a bounded shift if the time-varying closed loop is exponentially stable.
+The torque bias of the shift is $K'\Delta x$, so its size grows with the gains.
+The decoder therefore computes $K'$ first and scales $\Delta x$ down uniformly whenever $|K'\Delta x|_j$ exceeds a per-joint budget $\tau_{b,j}$, so the bound holds whatever the gains are.
 
 \subsection{Properties and limits}
-\emph{Structured.} With positive weights, $Q_{uu}$ is positive definite and $K'$ is the optimal feedback of a valid local linear-quadratic problem.
+\emph{Structured.} With positive weights and $P'_N\succeq0$, $Q_{uu}$ is positive definite and $K'$ is the optimal feedback of a valid local linear-quadratic problem.
 The refiner can choose a poor cost, but it cannot produce a gain with flipped signs or a broken coupling between joints.
 $K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics.
 
-\emph{Compact and meaningful.} The latent representation $\gamma$ has 22 numbers, each with a physical meaning that can be bounded and inspected.
+\emph{Compact and meaningful.} The latent representation $\gamma$ has 26 numbers, each with a physical meaning that can be bounded and inspected.
 The decoded gain depends smoothly on them.
 
-\emph{Inexpensive.} The decoder reuses the cost-term and dynamics Jacobians stored by the last MPC solve, so it evaluates no model derivative: it forms a weighted sum and runs one Riccati recursion over 20 nodes.
-With $\gamma_K=0$, it reproduces the gains of the MPC exactly.
+\emph{Inexpensive.} The decoder reuses the cost-term and dynamics Jacobians stored by the last MPC solve, so it evaluates no model derivative: it forms a weighted sum, adds \eqref{eq:terminal} and runs one Riccati recursion over 20 nodes.
+With $\gamma_K=0$ and $\gamma_P=0$, it reproduces the gains of the MPC exactly.
 
 \emph{Bounded.} This structure is not a safety guarantee: the gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
-Each scale therefore has a calibrated bound, since the gains do not respond evenly to the weights, and $\gamma$ is rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing.
-A safety check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl} could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
+Each scale therefore has a calibrated bound, since the gains do not respond evenly to the weights; $\gamma_P$ needs only an upper bound, chosen so that the torques stay within their limits for the errors expected after a push.
+$\gamma$ is rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and $\gamma_x$ more tightly, since it should cancel the systematic part of the error while the gains handle transients.
+At each decode, the one-step condition $P'_N-\mathcal R(P'_N)\succeq0$ is checked on a $36\times36$ matrix, and $\gamma_P$ is halved until it holds, provided that $P_N$ itself satisfies it along the walking logs.
+A stronger check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl}, which contains both $K'$ and $\Delta x$, could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
 
 \emph{Limits.} The decoder only reaches gains that are optimal for some cost on the model's dynamics, so if those dynamics are wrong, the best gain may lie outside this family.
 The refiner also cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
@@ -427,7 +463,9 @@ The refiner also cannot change the footsteps or the contact schedule, so disturb
 The refiner observes the state, a short history of tracking errors and torques, the contact flags and step phase, the velocity command and its own previous output.
 From the history it can recognize the situation, such as a heavier robot or a softer floor, and pick weights for it rather than learning one compromise setting.
 It is expected to be trained with PPO \cite{schulman2017ppo} in simulation under the uncertainties it should withstand: pushes, mass and CoM offsets, friction, contact stiffness, uneven ground and actuation delay.
-The reward combines velocity tracking and staying upright with penalties on the size and rate of $\gamma$, on joint torques, on a center of pressure (CoP) near the sole edge, on a tilted stance foot and on a swing-foot shift $\delta s$ in double support or near touchdown.
+One network outputs $\gamma_K$, $\gamma_P$ and $\gamma_x$, so that it can coordinate where to hold the robot and how hard to react.
+Since a gain change and a shift can produce the same torque against a persistent error, the reward penalizes $\gamma_P$ more than $\gamma_x$, preferring a shift to a stiffer reaction.
+The reward combines velocity tracking and staying upright with penalties on the size and rate of $\gamma$, on joint torques, on a center of pressure (CoP) near the sole edge, on a tilted stance foot and on a swing-foot shift $\Delta s$ in double support or near touchdown.
 Since the MPC and the decoder are part of the environment, no derivative of the solver is needed.
 
 \section{Preliminary Results: Base Controller}
@@ -448,7 +486,7 @@ A push is a 0.1\,s force on the base, given as its impulse.
 Straight walking reaches 101 to 104\,\% of the commanded speed from 0.4 to 0.5\,m/s, but only 90\,\% from 0.1 to 0.3\,m/s.
 Turning in place up to 0.3\,rad/s, walking at 0.5\,m/s while turning at 0.3\,rad/s and walking backward all run without a stop or a fall, as do all 16 cases of this test.
 At 0.5\,m/s, the median whole-body solve takes 5.8\,ms (three iterations) of its 50\,ms period, an IS-MPC tick 1.5\,ms and a pre-optimization 8.7\,ms.
-Warm-started solves stop at ten iterations; only the cold first solve takes longer (up to 85\,ms).
+Warm-started solves are capped at ten iterations; only the cold first solve takes longer (up to 85\,ms).
 
 \begin{table}[t]
 \caption{Failures and push recovery of the base controller}
@@ -483,7 +521,7 @@ Box-FDDP within the torque limits and centering the ZMP limits on the measured f
 
 The open-source ismpc\_walking controller \cite{mc_ismpcwalking}, run on the same machine and scenarios with position control, recovers 36 of 48 and 70 of 104 pushes, ten of them by stopping; with its default gait, it walks at up to 0.28\,m/s.
 It runs in real time, so its results vary more between runs (79 of 104 in an earlier run).
-All forward and all but one backward pushes are recovered; 23 of our 24 failures come from sideways pushes.
+Our controller recovers all forward and all but one backward pushes; 23 of its 24 failures come from sideways pushes.
 
 \subsection{What the refiner has to correct}
 In \eqref{eq:refined}, $\gamma_K$ changes how the torques react to an error, and $\gamma_x$ shifts the state they react to.
@@ -505,7 +543,7 @@ We built a torque-controlled walking controller for HRP-5P that couples an IS-MP
 In simulation, the robot walks at up to 0.5\,m/s, turns and walks backward with a median whole-body solve of 5.8\,ms, does not fall on random schedules or restarts, and recovers 80 of 104 pushes over a full stride, on par with an open-source IS-MPC walker.
 Most remaining failures are sideways pushes whose recovery steps land short of the DCM.
 
-Since a whole-body MPC is optimal only for its model, we proposed a control policy refiner that modifies the gain and set-point of its feedback policy through 22 cost-weight scales and set-point shifts, decoded by one backward pass of the solver, which keeps learning structured and low-dimensional.
+Since a whole-body MPC is optimal only for its model, we proposed a control policy refiner that modifies the gain and set-point of its feedback policy through 26 cost-weight scales, terminal-curvature increments and set-point shifts, decoded by one backward pass of the solver, which keeps learning structured and low-dimensional.
 Training the refiner is our next step.
 
 % slightly smaller reference list (small deviation from the IEEE template, to stay within 6 pages)
