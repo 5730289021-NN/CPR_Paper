@@ -364,7 +364,7 @@ P'_N=P_N+\textstyle\sum_{k=1}^{4}\gamma_{P,k}\,\Pi_k,\qquad \gamma_{P,k}\in[0,\b
 \label{eq:terminal}
 \end{equation}
 where the blocks $k$ are the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), and $\Pi_k=(\mathrm{tr}\,P_{N,kk}/n_k)\,I_{n_k}$ on block $k$ and zero elsewhere, so that $\gamma_{P,k}$ is relative to the curvature the MPC already uses.
-A change $\delta P'_N$ reaches the applied gain as follows, to first order (regularization and clamped torques omitted).
+A change $\delta P'_N$ reaches the applied gain as follows, to first order. For readability, the derivation omits the regularization of $Q_{uu}$ and the clamped torques; the decoder keeps both, and with clamped torques \eqref{eq:dK0}--\eqref{eq:dK} hold for the free torques.
 At node 0, the cost terms are unchanged and only $V^+_{xx}=V_{xx,1}$ changes, so $\delta Q_{uu}=B_0\T\delta V_{xx,1}B_0$, $\delta Q_{ux}=B_0\T\delta V_{xx,1}A_0$, and differentiating $K'_0=Q_{uu}^{-1}Q_{ux}$, i.e., $\delta K'_0=Q_{uu}^{-1}(\delta Q_{ux}-\delta Q_{uu}K'_0)$, gives
 \begin{equation}
 \delta K'_0=Q_{uu}^{-1}B_0\T\,\delta V_{xx,1}\,(A_0-B_0K'_0).
