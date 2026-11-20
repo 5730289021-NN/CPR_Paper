@@ -121,7 +121,7 @@ A learned terminal value can also extend the effective horizon of a short-horizo
 \node[blk, right=3.5mm of ismpc] (roll) {LIPM rollout,\\swing traj.};
 \node[blk, right=12mm of roll] (ocp) {OCP of the legs\\{\scriptsize 18 DoF, $20\times25$\,ms}};
 \node[blk, right=3.5mm of ocp] (ddp) {Box-FDDP\\solver};
-\node[blk, right=9mm of ddp] (ric) {Feedback policy\\$\tau=\ub+K(\xb\ominus x)$};
+\node[blk, right=9mm of ddp] (ric) {Feedback policy\\$\tau=\ub+\bar K(\xb\ominus x)$};
 \node[blk, right=6mm of ric] (rob) {HRP-5P};
 \node[grp, fit=(ftpp)(ismpc)(roll)] (gg) {};
 \node[grp, fit=(ocp)(ddp)] (wb) {};
@@ -133,7 +133,7 @@ A learned terminal value can also extend the effective horizon of a short-horizo
 \draw[->] (ismpc) -- (roll);
 \draw[->] (roll) -- node[lab, above] {refs.} (ocp);
 \draw[->] (ocp) -- (ddp);
-\draw[->] (ddp) -- node[lab, above] {$\xb,\ub,K$} (ric);
+\draw[->] (ddp) -- node[lab, above] {$\xb,\ub,\bar K$} (ric);
 \draw[->] (ric) -- node[lab, above] {$\tau$} (rob);
 \coordinate (fb) at ($(ric.south)+(0,-9mm)$);
 \draw[->] (rob.south) |- (fb) -- (ric.south);
@@ -238,14 +238,14 @@ The solver handles only box constraints, so the cone enters as a quadratic penal
 The weights are listed in Table~\ref{tab:weights}.
 In compact form, $\ell=\tfrac12\sum_c w_c\|r_c(x,u)\|^2_{W_c}$ over all terms $c$.
 The OCP is solved every 50\,ms with the Box-FDDP solver of Crocoddyl \cite{mastalli2020crocoddyl}, within the joint torque limits of the robot and with at most ten warm-started iterations.
-Each solve returns the trajectories $\xb_i,\ub_i$ and the Riccati gains $K_i$.
+Each solve returns the trajectories $\xb_i,\ub_i$ and the Riccati gains $\bar K_i$.
 Between solves, the torque is
 \begin{equation}
-\tau^{\mpc}=\ub_i+K_i\,(\xb_i\ominus x),\qquad K_i\in\R^{12\times36},
+\tau^{\mpc}=\ub_i+\bar K_i\,(\xb_i\ominus x),\qquad \bar K_i\in\R^{12\times36},
 \label{eq:riccati}
 \end{equation}
 evaluated at 1\,kHz with the measured state $x$, where $\ominus$ is the difference on the state manifold.
-$K_i\in\R^{12\times36}$ maps the state error, made of the errors of the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), to the 12 leg joint torques.
+$\bar K_i\in\R^{12\times36}$ maps the state error, made of the errors of the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), to the 12 leg joint torques.
 
 \begin{table}[t]
 \caption{Cost weights of the whole-body MPC}
@@ -273,15 +273,15 @@ Wrench cone & $w_W=10$ & --\\
 
 
 \subsection{Overview}
-According to \eqref{eq:riccati}, the set-point $\xb$ is the state the plan expects the robot to be in, and the gain $K$ sets how the joint torques react to an error.
+According to \eqref{eq:riccati}, the set-point $\xb$ is the state the plan expects the robot to be in, and the gain $\bar K$ sets how the joint torques react to an error.
 Since this control law gives the actual joint torques, it determines the behavior at the small scale, which has to cope with a push, a mismatched mass distribution or rough terrain.
 At the node rate of 40\,Hz, the refiner (Fig.~\ref{fig:stack}) adjusts both parts:
 \begin{equation}
-\tau=\ub+K'\,\big((\xb\oplus\Delta x)\ominus x\big).
+\tau=\ub+K\,\big((\xb\oplus\Delta x)\ominus x\big).
 \label{eq:refined}
 \end{equation}
-It outputs a latent representation $\gamma=(\gamma_K,\gamma_P,\gamma_x)$, and a fixed decoder maps $\gamma_K$ and $\gamma_P$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\Delta x$ of the set-point.
-Since the decoder is not learned, RL only explores the latent space, and $\gamma=0$ gives exactly the MPC controller.
+It outputs a latent representation $\gamma=(\gamma_K,\gamma_P,\gamma_x)$, and a fixed decoder maps $\gamma_K$ and $\gamma_P$ to the gain $K$, which replaces the MPC gain $\bar K$, through the DDP backward recursion and $\gamma_x$ to the shift $\Delta x$ of the set-point.
+Since the decoder is not learned, RL only explores the latent space, and $\gamma=0$ gives exactly the MPC controller ($K=\bar K$, $\Delta x=0$).
 Since the network is initialized to output zero, training starts from the behavior of the model-based controller of Section~\ref{sec:base} alone.
 
 \begin{figure}[t]
@@ -292,9 +292,9 @@ Since the network is initialized to output zero, training starts from the behavi
   dec/.style={draw, rounded corners=1.5pt, minimum height=9mm, align=center, inner sep=2pt, fill=orange!14, draw=orange!70!black},
   lab/.style={font=\scriptsize, align=center, inner sep=1pt}]
 \node[blk, minimum width=17mm] (mpc) at (0,0) {MPC\\(Fig.~\ref{fig:base})\\20\,Hz};
-\node[blk, minimum width=30mm] (fb) at (35,0) {Feedback policy, 1\,kHz\\$\ub+K'\big((\xb\oplus\Delta x)\ominus x\big)$};
+\node[blk, minimum width=30mm] (fb) at (35,0) {Feedback policy, 1\,kHz\\$\ub+K\big((\xb\oplus\Delta x)\ominus x\big)$};
 \node[blk, minimum width=11mm] (rob) at (68,0) {Robot};
-\node[dec, minimum width=29mm] (bp) at (13.5,20) {Riccati backward pass\\$(\gamma_K,\gamma_P)\mapsto K'$};
+\node[dec, minimum width=29mm] (bp) at (13.5,20) {Riccati backward pass\\$(\gamma_K,\gamma_P)\mapsto K$};
 \node[dec, minimum width=27mm] (pr) at (46.5,20) {Leg completion\\$\gamma_x\mapsto\Delta x$};
 \node[draw=orange!70!black, dashed, rounded corners=3pt, inner sep=3.5pt, fit=(bp)(pr)] (decgrp) {};
 \node[lab, text=orange!60!black, anchor=north east] at ($(decgrp.south east)+(0,-0.5)$) {\textbf{Decoder}};
@@ -302,7 +302,7 @@ Since the network is initialized to output zero, training starts from the behavi
 \draw[->, blue!60!black, thick] (pol.south -| 16,0) -- node[lab, left, text=blue!60!black] {weight scales,\\terminal curv.\\$\gamma_K,\gamma_P$ (14)} (16,24.5);
 \draw[->, blue!60!black, thick] (pol.south -| 42,0) -- node[lab, right, text=blue!60!black] {set-point shift\\$\gamma_x$ (12)} (42,24.5);
 \draw[->] (4,6) -- node[lab, left] {$\xb,\ub$,\\stored\\derivatives} (4,15.5);
-\draw[->] (25,15.5) -- node[lab, right, pos=0.45] {$K'$} (25,4.5);
+\draw[->] (25,15.5) -- node[lab, right, pos=0.45] {$K$} (25,4.5);
 \draw[->] (45,15.5) -- node[lab, right, pos=0.45] {$\Delta x$} (45,4.5);
 \draw[->] (mpc) -- node[lab, above] {$\xb,\ub$} (fb);
 \draw[->] (fb) -- node[lab, above] {$\tau$} (rob);
@@ -310,7 +310,7 @@ Since the network is initialized to output zero, training starts from the behavi
 \draw[->] (68,-9) -| (fb.south);
 \draw[->] (rob.north) -- (68,41) -- node[lab, above] {$x$, error history} (pol.east);
 \end{tikzpicture}
-\caption{The refiner stack. The MPC of Fig.~\ref{fig:base} is treated as one block. The refiner outputs 26 numbers. The decoder turns them into a full gain matrix $K'$ by one backward pass of the solver and into a contact-consistent set-point shift $\Delta x$.}
+\caption{The refiner stack. The MPC of Fig.~\ref{fig:base} is treated as one block. The refiner outputs 26 numbers. The decoder turns them into a full gain matrix $K$ by one backward pass of the solver and into a contact-consistent set-point shift $\Delta x$.}
 \label{fig:stack}
 \end{figure}
 
@@ -325,7 +325,7 @@ w'_G&=w_G,\qquad w'_W=w_W.\label{eq:scaleG}
 \end{align}
 Here $\gamma_K=(\gamma_B,\gamma_J,\gamma_V,\gamma_F,\gamma_{\tau_1},\dots,\gamma_{\tau_6})$ contains four tracking scales (base orientation, joint posture, velocity and foot terms) and six torque scales (one per joint group).
 These scales act on the running cost only; the terminal cost \eqref{eq:costterm} keeps its weights and is modified through $\gamma_P$ in Section~\ref{sec:terminal}.
-Since multiplying all weights by a common factor only scales every $Q$ and $V$ in \eqref{eq:backward} and leaves $K'$ unchanged, we fix the CoM weight as the reference. As the CoM reference is the output of the LIPM model, we prefer the CoM to remain the main objective. The wrench-cone penalty is not scaled either: it stands in for a constraint that the solver cannot impose, not for a trade-off, and a learned scale would let the refiner relax contact feasibility. It is also zero inside the cone, so it affects the gains only at the edge of the cone.
+Since multiplying all weights by a common factor only scales every $Q$ and $V$ in \eqref{eq:backward} and leaves $K$ unchanged, we fix the CoM weight as the reference. As the CoM reference is the output of the LIPM model, we prefer the CoM to remain the main objective. The wrench-cone penalty is not scaled either: it stands in for a constraint that the solver cannot impose, not for a trade-off, and a learned scale would let the refiner relax contact feasibility. It is also zero inside the cone, so it affects the gains only at the edge of the cone.
 
 The decoder then runs the backward pass once more along the current trajectory, with $\ell'$ in place of $\ell$.
 Under the Gauss--Newton approximation used by the solver, the cost Hessian is linear in the weights, $\ell'_{xx}=\sum_c w'_c\,J_c\T W_cJ_c$ (and similarly for $\ell'_{ux},\ell'_{uu}$).
@@ -336,8 +336,8 @@ The DDP recursion runs from the last node to the first:
 Q_{xx}&=\ell'_{xx}+f_x\T V^{+}_{xx}f_x,\nonumber\\
 Q_{ux}&=\ell'_{ux}+f_u\T V^{+}_{xx}f_x,\nonumber\\
 Q_{uu}&=\ell'_{uu}+f_u\T V^{+}_{xx}f_u,\nonumber\\
-K'&=Q_{uu}^{-1}Q_{ux},\nonumber\\
-V_{xx}&=Q_{xx}-Q_{ux}\T K',
+K&=Q_{uu}^{-1}Q_{ux},\nonumber\\
+V_{xx}&=Q_{xx}-Q_{ux}\T K,
 \label{eq:backward}
 \end{align}
 where $V^{+}_{xx}$ is the value Hessian of the next node, and the recursion starts from $V_{xx}=P'_N$ at node $N$ \eqref{eq:terminal}.
@@ -350,9 +350,9 @@ Because \eqref{eq:backward} uses only Hessians and dynamics Jacobians and no cos
 \text{s.t.}\ &\delta x_{i+1}=A_i\delta x_i+B_i\,\delta u_i,
 \label{eq:lq}
 \end{align}
-with $A_i=f_x$, $B_i=f_u$ and $P'_N$ from \eqref{eq:terminal}, whose optimal policy is $\delta u_i=-K'_i\delta x_i$, i.e., \eqref{eq:riccati} with $K'$.
-$A_i$ and $B_i$ are the Jacobians of the contact-constrained dynamics of node $i$, so the contact schedule of the plan is part of \eqref{eq:lq}; the state has the same dimension in every contact mode, so $V_{xx}$ carries across switches. Like the gains of the MPC, $K'$ assumes that contacts switch at the planned times.
-$K'$ is optimal for \eqref{eq:lq} whether or not $\xb$ is optimal for $\ell'$, and the Gauss--Newton Hessians are positive semidefinite at any point: $\ell'$ designs the reaction to deviations from the plan, not the plan itself.
+with $A_i=f_x$, $B_i=f_u$ and $P'_N$ from \eqref{eq:terminal}, whose optimal policy is $\delta u_i=-K_i\delta x_i$, i.e., \eqref{eq:riccati} with $K$.
+$A_i$ and $B_i$ are the Jacobians of the contact-constrained dynamics of node $i$, so the contact schedule of the plan is part of \eqref{eq:lq}; the state has the same dimension in every contact mode, so $V_{xx}$ carries across switches. Like the gains of the MPC, $K$ assumes that contacts switch at the planned times.
+$K$ is optimal for \eqref{eq:lq} whether or not $\xb$ is optimal for $\ell'$, and the Gauss--Newton Hessians are positive semidefinite at any point: $\ell'$ designs the reaction to deviations from the plan, not the plan itself.
 The decoder therefore discards the feedforward term and the plan update that a full DDP step on $\ell'$ would imply; only the gains are replaced, so the decoded gains change the reaction but not the planned motion, which is what bounds the effect of the refiner.
 
 \subsection{Terminal curvature}
@@ -365,46 +365,46 @@ P'_N=P_N+\textstyle\sum_{k=1}^{4}\gamma_{P,k}\,\Pi_k,\qquad \gamma_{P,k}\in[0,\b
 \end{equation}
 where the blocks $k$ are the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), and $\Pi_k=(\mathrm{tr}\,P_{N,kk}/n_k)\,I_{n_k}$ on block $k$ and zero elsewhere, so that $\gamma_{P,k}$ is relative to the curvature the MPC already uses.
 A change $\delta P'_N$ reaches the applied gain as follows, to first order. For readability, the derivation omits the regularization of $Q_{uu}$ and the clamped torques; the decoder keeps both, and with clamped torques \eqref{eq:dDDP} and \eqref{eq:dK} hold for the free torques.
-The cost terms do not depend on $P'_N$, so perturbing each line of the recursion \eqref{eq:backward} at node $i$ (left) gives its first-order change (right), with $M_i=A_i-B_iK'_i$ and the index $i$ of $A_i$, $B_i$, $M_i$ dropped:
+The cost terms do not depend on $P'_N$, so perturbing each line of the recursion \eqref{eq:backward} at node $i$ (left) gives its first-order change (right), with $M_i=A_i-B_iK_i$ and the index $i$ of $A_i$, $B_i$, $M_i$ dropped:
 \begin{equation}
 \begin{alignedat}{3}
 Q_{xx}&=\ell'_{xx}+A\T P_{i+1}A &\,&\to& \;\delta Q_{xx}&=A\T\delta P_{i+1}A\\
 Q_{ux}&=\ell'_{ux}+B\T P_{i+1}A &&\to& \;\delta Q_{ux}&=B\T\delta P_{i+1}A\\
 Q_{uu}&=\ell'_{uu}+B\T P_{i+1}B &&\to& \;\delta Q_{uu}&=B\T\delta P_{i+1}B\\
-K'_i&=Q_{uu}^{-1}Q_{ux} &&\to& \;\delta K'_i&=Q_{uu}^{-1}B\T\delta P_{i+1}M\\
-P_i&=Q_{xx}-Q_{ux}\T K'_i &&\to& \;\delta P_i&=M\T\delta P_{i+1}M
+K_i&=Q_{uu}^{-1}Q_{ux} &&\to& \;\delta K_i&=Q_{uu}^{-1}B\T\delta P_{i+1}M\\
+P_i&=Q_{xx}-Q_{ux}\T K_i &&\to& \;\delta P_i&=M\T\delta P_{i+1}M
 \end{alignedat}
 \label{eq:dDDP}
 \end{equation}
-For the fourth line, differentiating $Q_{uu}K'_i=Q_{ux}$ gives $\delta Q_{uu}K'_i+Q_{uu}\,\delta K'_i=\delta Q_{ux}$; solving for $\delta K'_i$ and substituting the second and third lines,
+For the fourth line, differentiating $Q_{uu}K_i=Q_{ux}$ gives $\delta Q_{uu}K_i+Q_{uu}\,\delta K_i=\delta Q_{ux}$; solving for $\delta K_i$ and substituting the second and third lines,
 \[
 \begin{aligned}
-\delta K'_i&=Q_{uu}^{-1}(\delta Q_{ux}-\delta Q_{uu}K'_i)\\
-&=Q_{uu}^{-1}(B\T\delta P_{i+1}A-B\T\delta P_{i+1}BK'_i)\\
-&=Q_{uu}^{-1}B\T\delta P_{i+1}(A-BK'_i)=Q_{uu}^{-1}B\T\delta P_{i+1}M.
+\delta K_i&=Q_{uu}^{-1}(\delta Q_{ux}-\delta Q_{uu}K_i)\\
+&=Q_{uu}^{-1}(B\T\delta P_{i+1}A-B\T\delta P_{i+1}BK_i)\\
+&=Q_{uu}^{-1}B\T\delta P_{i+1}(A-BK_i)=Q_{uu}^{-1}B\T\delta P_{i+1}M.
 \end{aligned}
 \]
-For the last line, since $Q_{uu}K'_i=Q_{ux}$, $P_i$ can also be written as $P_i=Q_{xx}-Q_{ux}\T K'_i-K'^{\top}_iQ_{ux}+K'^{\top}_iQ_{uu}K'_i$.
-Its terms in $\delta K'_i$ are $\delta K'^{\top}_i(Q_{uu}K'_i-Q_{ux})$ and its transpose, which vanish for the same reason, so only the changes of the $Q$ blocks remain; substituting the first three lines,
+For the last line, since $Q_{uu}K_i=Q_{ux}$, $P_i$ can also be written as $P_i=Q_{xx}-Q_{ux}\T K_i-K^{\top}_iQ_{ux}+K^{\top}_iQ_{uu}K_i$.
+Its terms in $\delta K_i$ are $\delta K^{\top}_i(Q_{uu}K_i-Q_{ux})$ and its transpose, which vanish for the same reason, so only the changes of the $Q$ blocks remain; substituting the first three lines,
 \[
 \begin{aligned}
-\delta P_i&=\delta Q_{xx}-\delta Q_{ux}\T K'_i-K'^{\top}_i\delta Q_{ux}+K'^{\top}_i\delta Q_{uu}K'_i\\
-&=A\T\delta P_{i+1}A-A\T\delta P_{i+1}BK'_i\\
-&\quad-K'^{\top}_iB\T\delta P_{i+1}A+K'^{\top}_iB\T\delta P_{i+1}BK'_i\\
-&=(A-BK'_i)\T\delta P_{i+1}(A-BK'_i)=M\T\delta P_{i+1}M.
+\delta P_i&=\delta Q_{xx}-\delta Q_{ux}\T K_i-K^{\top}_i\delta Q_{ux}+K^{\top}_i\delta Q_{uu}K_i\\
+&=A\T\delta P_{i+1}A-A\T\delta P_{i+1}BK_i\\
+&\quad-K^{\top}_iB\T\delta P_{i+1}A+K^{\top}_iB\T\delta P_{i+1}BK_i\\
+&=(A-BK_i)\T\delta P_{i+1}(A-BK_i)=M\T\delta P_{i+1}M.
 \end{aligned}
 \]
 Chaining the last line from the terminal change $\delta P'_N$ down to node 1 gives $\delta P_1=\Phi\T\delta P'_N\Phi$, and the fourth line at node 0 then gives
 \begin{equation}
-\delta K'_0=Q_{uu}^{-1}B_0\T\,\Phi\T\delta P'_N\,\Phi\,M_0,
+\delta K_0=Q_{uu}^{-1}B_0\T\,\Phi\T\delta P'_N\,\Phi\,M_0,
 \label{eq:dK}
 \end{equation}
 where $\Phi=M_{N-1}M_{N-2}\cdots M_1$ is the closed-loop transition from node 1 to node $N$.
 Modes that the closed loop damps within the horizon are filtered out by $\Phi$, and only the slow ones, mainly the balance of the base and the CoM, are affected, so four block increments replace the 666 entries of $P'_N$.
-If $P'_N$ were the value Hessian of a longer problem, $K'_0$ would be its gain exactly; adding curvature lets the refiner approach longer-horizon gains without a longer solve, which the running-weight scales cannot do.
+If $P'_N$ were the value Hessian of a longer problem, $K_0$ would be its gain exactly; adding curvature lets the refiner approach longer-horizon gains without a longer solve, which the running-weight scales cannot do.
 The increments are one-sided: $P'_N\succeq P_N$, and since the Riccati recursion is monotone, $P'_i\succeq P_i$ at every node, so the refiner can only make the cost-to-go more conservative than that of the MPC.
 This ordering is not a stability guarantee: $P'_N\succeq P_N$ does not imply that $P'_N$ satisfies the terminal condition $P'_N\succeq\mathcal R(P'_N)$ of receding-horizon control \cite{bitmead1990adaptive}, where $\mathcal R$ is one step of \eqref{eq:backward}.
-Whether these directions are new with respect to $\gamma_K$ will be checked before training with the Jacobian of $K'_0$ with respect to $\gamma$.
+Whether these directions are new with respect to $\gamma_K$ will be checked before training with the Jacobian of $K_0$ with respect to $\gamma$.
 
 \begin{table}[t]
 \caption{Latent representation $\gamma$ of the refiner}
@@ -421,7 +421,7 @@ $\gamma_K$, torque & hip, knee, ankle; left and right leg & 6\\
 $\gamma_P$ & terminal curvature: base pose, joints, base vel., joint vel. & 4\\
 $\gamma_x$ & base and swing-foot pose shifts; leg joints follow & 12\\
 \midrule
-\multicolumn{2}{@{}l}{Total, decoded into $K'\in\R^{12\times36}$ per node and $\Delta x\in\R^{36}$} & 26\\
+\multicolumn{2}{@{}l}{Total, decoded into $K\in\R^{12\times36}$ per node and $\Delta x\in\R^{36}$} & 26\\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -459,33 +459,33 @@ Unlike a projection onto the null space of the contact Jacobian, this reproduces
 At liftoff and touchdown, the row of a foot in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\Delta s$ unless $\Delta s=0$.
 We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\Delta s\|$ in double support and near touchdown.
 
-Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K'\Delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\Delta x$: a learned bias on the state the controller sees.
-It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\Delta x$.
+Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K\Delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\Delta x$: a learned bias on the state the controller sees.
+It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K\Delta x$.
 With the deviation $\delta x_i$ of \eqref{eq:lq}, the error evolves as
 \begin{equation}
-\delta x_{i+1}=(A_i-B_iK'_i)\,\delta x_i+B_iK'_i\,\Delta x_i ,
+\delta x_{i+1}=(A_i-B_iK_i)\,\delta x_i+B_iK_i\,\Delta x_i ,
 \label{eq:cl}
 \end{equation}
 which stays bounded for a bounded shift if the time-varying closed loop is exponentially stable.
-The torque bias of the shift is $K'\Delta x$, so its size grows with the gains.
-The decoder therefore computes $K'$ first and scales $\Delta x$ down uniformly whenever $|K'\Delta x|_j$ exceeds a per-joint budget $\tau_{b,j}$, so the bound holds whatever the gains are.
+The torque bias of the shift is $K\Delta x$, so its size grows with the gains.
+The decoder therefore computes $K$ first and scales $\Delta x$ down uniformly whenever $|K\Delta x|_j$ exceeds a per-joint budget $\tau_{b,j}$, so the bound holds whatever the gains are.
 
 \subsection{Properties and limits}
-\emph{Structured.} With positive weights and $P'_N\succeq0$, $Q_{uu}$ is positive definite and $K'$ is the optimal feedback of a valid local linear-quadratic problem.
+\emph{Structured.} With positive weights and $P'_N\succeq0$, $Q_{uu}$ is positive definite and $K$ is the optimal feedback of a valid local linear-quadratic problem.
 The refiner can choose a poor cost, but it cannot produce a gain with flipped signs or a broken coupling between joints.
-$K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics.
+$K$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics.
 
 \emph{Compact and meaningful.} The latent representation $\gamma$ has 26 numbers, each with a physical meaning that can be bounded and inspected.
 The decoded gain depends smoothly on them.
 
 \emph{Inexpensive.} The decoder reuses the cost-term and dynamics Jacobians stored by the last MPC solve, so it evaluates no model derivative: it forms a weighted sum, adds \eqref{eq:terminal} and runs one Riccati recursion over 20 nodes.
-With $\gamma_K=0$ and $\gamma_P=0$, it reproduces the gains of the MPC exactly.
+With $\gamma_K=0$ and $\gamma_P=0$, it reproduces the gains of the MPC exactly, $K=\bar K$.
 
 \emph{Bounded.} This structure is not a safety guarantee: the gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
 Each scale therefore has a calibrated bound, since the gains do not respond evenly to the weights; $\gamma_P$ needs only an upper bound, chosen so that the torques stay within their limits for the errors expected after a push.
 $\gamma$ is rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and $\gamma_x$ more tightly, since it should cancel the systematic part of the error while the gains handle transients.
 At each decode, the one-step condition $P'_N-\mathcal R(P'_N)\succeq0$ is checked on a $36\times36$ matrix, and $\gamma_P$ is halved until it holds, provided that $P_N$ itself satisfies it along the walking logs.
-A stronger check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl}, which contains both $K'$ and $\Delta x$, could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
+A stronger check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl}, which contains both $K$ and $\Delta x$, could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
 
 \emph{Limits.} The decoder only reaches gains that are optimal for some cost on the model's dynamics, so if those dynamics are wrong, the best gain may lie outside this family.
 The refiner also cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
