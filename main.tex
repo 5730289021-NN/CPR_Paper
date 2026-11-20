@@ -317,7 +317,7 @@ Since the network is initialized to output zero, training starts from the behavi
 \subsection{DDP backward recursion as a decoder for the gains}
 The Riccati gains are a function of the cost \eqref{eq:costwb}, and we exploit this fact to obtain new gains.
 The decoder does not change the cost of the MPC itself, i.e., every solve uses the original weights of \eqref{eq:costwb}, so the plan $\xb,\ub$ remains the same.
-The decoder uses a copy $\ell'$ of the cost with scaled weights to recompute the gains.
+To recompute the gains, the decoder uses $\ell'$: the same cost as $\ell$ in \eqref{eq:costwb}, with the same terms and residuals, but with modified weights.
 Each scale multiplies one weight of \eqref{eq:costwb}:
 \begin{align}
 w'_j&=w_j\,e^{\gamma_j},\qquad j\in\{B,J,V,F,\tau_1,\dots,\tau_6\},\label{eq:scale}\\
