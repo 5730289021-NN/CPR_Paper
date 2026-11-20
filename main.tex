@@ -384,11 +384,13 @@ For the fourth line, differentiating $Q_{uu}K_i=Q_{ux}$ gives $\delta Q_{uu}K_i+
 &=Q_{uu}^{-1}B\T\delta P_{i+1}(A-BK_i)=Q_{uu}^{-1}B\T\delta P_{i+1}M.
 \end{aligned}
 \]
-For the last line, since $Q_{uu}K_i=Q_{ux}$, $P_i$ can also be written as $P_i=Q_{xx}-Q_{ux}\T K_i-K^{\top}_iQ_{ux}+K^{\top}_iQ_{uu}K_i$.
-Its terms in $\delta K_i$ are $\delta K^{\top}_i(Q_{uu}K_i-Q_{ux})$ and its transpose, which vanish for the same reason, so only the changes of the $Q$ blocks remain; substituting the first three lines,
+For the last line, differentiating $P_i=Q_{xx}-Q_{ux}\T K_i$ with the product rule gives the first line below.
+Its last term is rewritten with two facts from the step above: $Q_{ux}\T=K^{\top}_iQ_{uu}$, since $Q_{uu}K_i=Q_{ux}$ and $Q_{uu}$ is symmetric, and $Q_{uu}\delta K_i=\delta Q_{ux}-\delta Q_{uu}K_i$, so that $Q_{ux}\T\delta K_i=K^{\top}_i(\delta Q_{ux}-\delta Q_{uu}K_i)$.
+Then the first three lines are substituted and $M$ is factored out:
 \[
 \begin{aligned}
-\delta P_i&=\delta Q_{xx}-\delta Q_{ux}\T K_i-K^{\top}_i\delta Q_{ux}+K^{\top}_i\delta Q_{uu}K_i\\
+\delta P_i&=\delta Q_{xx}-\delta Q_{ux}\T K_i-Q_{ux}\T\delta K_i\\
+&=\delta Q_{xx}-\delta Q_{ux}\T K_i-K^{\top}_i\delta Q_{ux}+K^{\top}_i\delta Q_{uu}K_i\\
 &=A\T\delta P_{i+1}A-A\T\delta P_{i+1}BK_i\\
 &\quad-K^{\top}_iB\T\delta P_{i+1}A+K^{\top}_iB\T\delta P_{i+1}BK_i\\
 &=(A-BK_i)\T\delta P_{i+1}(A-BK_i)=M\T\delta P_{i+1}M.
