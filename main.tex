@@ -277,10 +277,10 @@ According to \eqref{eq:riccati}, the set-point $\xb$ is the state the plan expec
 Since this control law gives the actual joint torques, it determines the behavior at the small scale, which has to cope with a push, a mismatched mass distribution or rough terrain.
 At the node rate of 40\,Hz, the refiner (Fig.~\ref{fig:stack}) adjusts both parts:
 \begin{equation}
-\tau=\ub+K'\,\big((\xb\oplus\delta x)\ominus x\big).
+\tau=\ub+K'\,\big((\xb\oplus\delta\xb)\ominus x\big).
 \label{eq:refined}
 \end{equation}
-It outputs a latent representation $\gamma=(\gamma_K,\gamma_P,\gamma_x)$, and a fixed decoder maps $\gamma_K$ and $\gamma_P$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\delta x$ of the set-point.
+It outputs a latent representation $\gamma=(\gamma_K,\gamma_P,\gamma_x)$, and a fixed decoder maps $\gamma_K$ and $\gamma_P$ to the gain $K'$ through the DDP backward recursion and $\gamma_x$ to the shift $\delta\xb$ of the set-point.
 Since the decoder is not learned, RL only explores the latent space, and $\gamma=0$ gives exactly the MPC controller.
 Since the network is initialized to output zero, training starts from the behavior of the model-based controller of Section~\ref{sec:base} alone.
 
@@ -292,10 +292,10 @@ Since the network is initialized to output zero, training starts from the behavi
   dec/.style={draw, rounded corners=1.5pt, minimum height=9mm, align=center, inner sep=2pt, fill=orange!14, draw=orange!70!black},
   lab/.style={font=\scriptsize, align=center, inner sep=1pt}]
 \node[blk, minimum width=17mm] (mpc) at (0,0) {MPC\\(Fig.~\ref{fig:base})\\20\,Hz};
-\node[blk, minimum width=30mm] (fb) at (35,0) {Feedback policy, 1\,kHz\\$\ub+K'\big((\xb\oplus\delta x)\ominus x\big)$};
+\node[blk, minimum width=30mm] (fb) at (35,0) {Feedback policy, 1\,kHz\\$\ub+K'\big((\xb\oplus\delta\xb)\ominus x\big)$};
 \node[blk, minimum width=11mm] (rob) at (68,0) {Robot};
 \node[dec, minimum width=29mm] (bp) at (13.5,20) {Riccati backward pass\\$(\gamma_K,\gamma_P)\mapsto K'$};
-\node[dec, minimum width=27mm] (pr) at (46.5,20) {Leg completion\\$\gamma_x\mapsto\delta x$};
+\node[dec, minimum width=27mm] (pr) at (46.5,20) {Leg completion\\$\gamma_x\mapsto\delta\xb$};
 \node[draw=orange!70!black, dashed, rounded corners=3pt, inner sep=3.5pt, fit=(bp)(pr)] (decgrp) {};
 \node[lab, text=orange!60!black, anchor=north east] at ($(decgrp.south east)+(0,-0.5)$) {\textbf{Decoder}};
 \node[res, minimum width=40mm] (pol) at (28,41) {\textbf{Refiner} $\pi_\theta$, 40\,Hz};
@@ -303,14 +303,14 @@ Since the network is initialized to output zero, training starts from the behavi
 \draw[->, blue!60!black, thick] (pol.south -| 42,0) -- node[lab, right, text=blue!60!black] {set-point shift\\$\gamma_x$ (12)} (42,24.5);
 \draw[->] (4,6) -- node[lab, left] {$\xb,\ub$,\\stored\\derivatives} (4,15.5);
 \draw[->] (25,15.5) -- node[lab, right, pos=0.45] {$K'$} (25,4.5);
-\draw[->] (45,15.5) -- node[lab, right, pos=0.45] {$\delta x$} (45,4.5);
+\draw[->] (45,15.5) -- node[lab, right, pos=0.45] {$\delta\xb$} (45,4.5);
 \draw[->] (mpc) -- node[lab, above] {$\xb,\ub$} (fb);
 \draw[->] (fb) -- node[lab, above] {$\tau$} (rob);
 \draw[->] (rob.south) -- (68,-9) -| node[lab, pos=0.25, below] {state $x$} (mpc.south);
 \draw[->] (68,-9) -| (fb.south);
 \draw[->] (rob.north) -- (68,41) -- node[lab, above] {$x$, error history} (pol.east);
 \end{tikzpicture}
-\caption{The refiner stack. The MPC of Fig.~\ref{fig:base} is treated as one block. The refiner outputs 26 numbers. The decoder turns them into a full gain matrix $K'$ by one backward pass of the solver and into a contact-consistent set-point shift $\delta x$.}
+\caption{The refiner stack. The MPC of Fig.~\ref{fig:base} is treated as one block. The refiner outputs 26 numbers. The decoder turns them into a full gain matrix $K'$ by one backward pass of the solver and into a contact-consistent set-point shift $\delta\xb$.}
 \label{fig:stack}
 \end{figure}
 
@@ -343,14 +343,14 @@ V_{xx}&=Q_{xx}-Q_{ux}\T K',
 where $V^{+}_{xx}$ is the value Hessian of the next node, and the recursion starts from $V_{xx}=P'_N$ at node $N$ \eqref{eq:terminal}.
 
 The backward pass runs only once to produce the gains along that trajectory.
-Because \eqref{eq:backward} uses only Hessians and dynamics Jacobians and no cost gradients, it solves the time-varying LQ problem for the deviation $\zeta_i=x_i\ominus\xb_i$, $\delta u_i=u_i-\ub_i$ from the trajectory,
+Because \eqref{eq:backward} uses only Hessians and dynamics Jacobians and no cost gradients, it solves the time-varying LQ problem for the deviation $\delta x_i=x_i\ominus\xb_i$, $\delta u_i=u_i-\ub_i$ from the trajectory,
 \begin{align}
-\min_{\delta u}\ &\textstyle\sum_{i=0}^{N-1}\tfrac12\big(\zeta_i\T\ell'_{xx}\zeta_i+2\,\delta u_i\T\ell'_{ux}\zeta_i+\delta u_i\T\ell'_{uu}\delta u_i\big)\nonumber\\
-&+\tfrac12\,\zeta_N\T P'_N\zeta_N\nonumber\\
-\text{s.t.}\ &\zeta_{i+1}=A_i\zeta_i+B_i\,\delta u_i,
+\min_{\delta u}\ &\textstyle\sum_{i=0}^{N-1}\tfrac12\big(\delta x_i\T\ell'_{xx}\delta x_i+2\,\delta u_i\T\ell'_{ux}\delta x_i+\delta u_i\T\ell'_{uu}\delta u_i\big)\nonumber\\
+&+\tfrac12\,\delta x_N\T P'_N\delta x_N\nonumber\\
+\text{s.t.}\ &\delta x_{i+1}=A_i\delta x_i+B_i\,\delta u_i,
 \label{eq:lq}
 \end{align}
-with $A_i=f_x$, $B_i=f_u$ and $P'_N$ from \eqref{eq:terminal}, whose optimal policy is $\delta u_i=-K'_i\zeta_i$, i.e., \eqref{eq:riccati} with $K'$.
+with $A_i=f_x$, $B_i=f_u$ and $P'_N$ from \eqref{eq:terminal}, whose optimal policy is $\delta u_i=-K'_i\delta x_i$, i.e., \eqref{eq:riccati} with $K'$.
 $K'$ is optimal for \eqref{eq:lq} whether or not $\xb$ is optimal for $\ell'$, and the Gauss--Newton Hessians are positive semidefinite at any point: $\ell'$ designs the reaction to deviations from the plan, not the plan itself.
 The decoder therefore discards the feedforward term and the plan update that a full DDP step on $\ell'$ would imply; only the gains are replaced, so the decoded gains change the reaction but not the planned motion, which is what bounds the effect of the refiner.
 
@@ -390,7 +390,7 @@ $\gamma_K$, torque & hip, knee, ankle; left and right leg & 6\\
 $\gamma_P$ & terminal curvature: base pose, joints, base vel., joint vel. & 4\\
 $\gamma_x$ & base and swing-foot pose shifts; leg joints follow & 12\\
 \midrule
-\multicolumn{2}{@{}l}{Total, decoded into $K'\in\R^{12\times36}$ per node and $\delta x\in\R^{36}$} & 26\\
+\multicolumn{2}{@{}l}{Total, decoded into $K'\in\R^{12\times36}$ per node and $\delta\xb\in\R^{36}$} & 26\\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -400,7 +400,7 @@ The refiner outputs a shift $\delta b$ of the base pose and a shift $\delta s$ o
 The decoder turns them into a shift of the leg joints.
 The set-point shift has the same layout as the state error,
 \begin{equation}
-\delta x=\begin{bmatrix}\delta b\\ \delta q_J\\ 0_{18}\end{bmatrix}\in\R^{36},
+\delta\xb=\begin{bmatrix}\delta b\\ \delta q_J\\ 0_{18}\end{bmatrix}\in\R^{36},
 \label{eq:setpoint}
 \end{equation}
 with the base pose first ($\delta b\in\R^6$), then the twelve leg joints ($\delta q_J\in\R^{12}$), and a zero velocity part for the 18 base and joint velocities.
@@ -428,16 +428,16 @@ Unlike a projection onto the null space of the contact Jacobian, this reproduces
 At liftoff and touchdown, the row of a foot in \eqref{eq:footshift} switches, and the joint set-point jumps by $J_{f,J}^{-1}\delta s$ unless $\delta s=0$.
 We leave this to the policy, which observes the contact flags and the step phase and is penalized for $\|\delta s\|$ in double support and near touchdown.
 
-Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K'\delta x$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\delta x$: a learned bias on the state the controller sees.
-It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\delta x$.
-With $\zeta_i=x_i\ominus\xb_i$ and $A_i,B_i$ the dynamics Jacobians, the error evolves as
+Since the Riccati policy is the first-order expansion of the MPC solution \cite{fiacco1983sensitivity,dantec2022firstorder}, the torque $K'\delta\xb$ is, for a small shift, what the MPC with the refined weights would command if the robot were displaced by $-\delta\xb$: a learned bias on the state the controller sees.
+It does not move the references of the MPC, so the robot settles where the pull of the MPC balances $K'\delta\xb$.
+With the deviation $\delta x_i$ of \eqref{eq:lq}, the error evolves as
 \begin{equation}
-\zeta_{i+1}=(A_i-B_iK'_i)\,\zeta_i+B_iK'_i\,\delta x_i ,
+\delta x_{i+1}=(A_i-B_iK'_i)\,\delta x_i+B_iK'_i\,\delta\xb_i ,
 \label{eq:cl}
 \end{equation}
 which stays bounded for a bounded shift if the time-varying closed loop is exponentially stable.
-The torque bias of the shift is $K'\delta x$, so its size grows with the gains.
-The decoder therefore computes $K'$ first and scales $\delta x$ down uniformly whenever $|K'\delta x|_j$ exceeds a per-joint budget $\tau_{b,j}$, so the bound holds whatever the gains are.
+The torque bias of the shift is $K'\delta\xb$, so its size grows with the gains.
+The decoder therefore computes $K'$ first and scales $\delta\xb$ down uniformly whenever $|K'\delta\xb|_j$ exceeds a per-joint budget $\tau_{b,j}$, so the bound holds whatever the gains are.
 
 \subsection{Properties and limits}
 \emph{Structured.} With positive weights and $P'_N\succeq0$, $Q_{uu}$ is positive definite and $K'$ is the optimal feedback of a valid local linear-quadratic problem.
@@ -454,7 +454,7 @@ With $\gamma_K=0$ and $\gamma_P=0$, it reproduces the gains of the MPC exactly.
 Each scale therefore has a calibrated bound, since the gains do not respond evenly to the weights; $\gamma_P$ needs only an upper bound, chosen so that the torques stay within their limits for the errors expected after a push.
 $\gamma$ is rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and $\gamma_x$ more tightly, since it should cancel the systematic part of the error while the gains handle transients.
 At each decode, the one-step condition $P'_N-\mathcal R(P'_N)\succeq0$ is checked on a $36\times36$ matrix, and $\gamma_P$ is halved until it holds, provided that $P_N$ itself satisfies it along the walking logs.
-A stronger check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl}, which contains both $K'$ and $\delta x$, could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
+A stronger check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl}, which contains both $K'$ and $\delta\xb$, could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
 
 \emph{Limits.} The decoder only reaches gains that are optimal for some cost on the model's dynamics, so if those dynamics are wrong, the best gain may lie outside this family.
 The refiner also cannot change the footsteps or the contact schedule, so disturbances that need a different step remain the job of the gait generator.
