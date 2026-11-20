@@ -340,7 +340,7 @@ K'&=Q_{uu}^{-1}Q_{ux},\nonumber\\
 V_{xx}&=Q_{xx}-Q_{ux}\T K',
 \label{eq:backward}
 \end{align}
-where $V^{+}_{xx}$ is the value Hessian of the next node, and the recursion starts from $V_{xx}=P'$ at node $N$ \eqref{eq:terminal}.
+where $V^{+}_{xx}$ is the value Hessian of the next node, and the recursion starts from $V_{xx}=P'_N$ at node $N$ \eqref{eq:terminal}.
 
 The backward pass runs only once to produce the gains along that trajectory.
 Because \eqref{eq:backward} uses only Hessians and dynamics Jacobians and no cost gradients, it is the time-varying LQR around the trajectory with the new weights.
@@ -348,22 +348,22 @@ In this design, only the gains are replaced, so the decoded gains change the rea
 
 \subsection{Terminal curvature}
 \label{sec:terminal}
-With a horizon of only 0.5\,s, the terminal value Hessian $P^0=\nabla^2\ell_N$, which starts the recursion \eqref{eq:backward}, stands for everything that happens after the horizon.
+With a horizon of only 0.5\,s, the terminal value Hessian $P_N=\nabla^2\ell_N$, which starts the recursion \eqref{eq:backward}, stands for everything that happens after the horizon.
 The refiner can add curvature to it, one block of the state error at a time:
 \begin{equation}
-P'=P^0+\textstyle\sum_{k=1}^{4}\gamma_{P,k}\,\Pi_k,\qquad \gamma_{P,k}\in[0,\bar\gamma_{P,k}],
+P'_N=P_N+\textstyle\sum_{k=1}^{4}\gamma_{P,k}\,\Pi_k,\qquad \gamma_{P,k}\in[0,\bar\gamma_{P,k}],
 \label{eq:terminal}
 \end{equation}
-where the blocks $k$ are the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), and $\Pi_k=(\mathrm{tr}\,P^0_{kk}/n_k)\,I_{n_k}$ on block $k$ and zero elsewhere, so that $\gamma_{P,k}$ is relative to the curvature the MPC already uses.
-With $A_i=f_x$, $B_i=f_u$ at node $i$, a change of $P'$ reaches the applied gain, to first order, as
+where the blocks $k$ are the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), and $\Pi_k=(\mathrm{tr}\,P_{N,kk}/n_k)\,I_{n_k}$ on block $k$ and zero elsewhere, so that $\gamma_{P,k}$ is relative to the curvature the MPC already uses.
+With $A_i=f_x$, $B_i=f_u$ at node $i$, a change of $P'_N$ reaches the applied gain, to first order, as
 \begin{equation}
-\delta K'_0=Q_{uu}^{-1}B_0\T\,\Phi\T\delta P'\,\Phi\,(A_0-B_0K'_0),\quad \Phi=\textstyle\prod_{i=1}^{N-1}(A_i-B_iK'_i).
+\delta K'_0=Q_{uu}^{-1}B_0\T\,\Phi\T\delta P'_N\,\Phi\,(A_0-B_0K'_0),\quad \Phi=\textstyle\prod_{i=1}^{N-1}(A_i-B_iK'_i).
 \label{eq:dK}
 \end{equation}
-Modes that the closed loop damps within the horizon are filtered out by $\Phi$, and only the slow ones, mainly the balance of the base and the CoM, are affected, so four block increments replace the 666 entries of $P'$.
-If $P'$ were the value Hessian of a longer problem, $K'_0$ would be its gain exactly; adding curvature lets the refiner approach longer-horizon gains without a longer solve, which the running-weight scales cannot do.
-The increments are one-sided: $P'\succeq P^0$, and since the Riccati recursion is monotone, $V'_{xx,i}\succeq V_{xx,i}$ at every node, so the refiner can only make the cost-to-go more conservative than that of the MPC.
-This ordering is not a stability guarantee: $P'\succeq P^0$ does not imply that $P'$ satisfies the terminal condition $P'\succeq\mathcal R(P')$ of receding-horizon control \cite{bitmead1990adaptive}, where $\mathcal R$ is one step of \eqref{eq:backward}.
+Modes that the closed loop damps within the horizon are filtered out by $\Phi$, and only the slow ones, mainly the balance of the base and the CoM, are affected, so four block increments replace the 666 entries of $P'_N$.
+If $P'_N$ were the value Hessian of a longer problem, $K'_0$ would be its gain exactly; adding curvature lets the refiner approach longer-horizon gains without a longer solve, which the running-weight scales cannot do.
+The increments are one-sided: $P'_N\succeq P_N$, and since the Riccati recursion is monotone, $V'_{xx,i}\succeq V_{xx,i}$ at every node, so the refiner can only make the cost-to-go more conservative than that of the MPC.
+This ordering is not a stability guarantee: $P'_N\succeq P_N$ does not imply that $P'_N$ satisfies the terminal condition $P'_N\succeq\mathcal R(P'_N)$ of receding-horizon control \cite{bitmead1990adaptive}, where $\mathcal R$ is one step of \eqref{eq:backward}.
 Whether these directions are new with respect to $\gamma_K$ will be checked before training with the Jacobian of $K'_0$ with respect to $\gamma$.
 
 \begin{table}[t]
@@ -431,7 +431,7 @@ The torque bias of the shift is $K'\delta x$, so its size grows with the gains.
 The decoder therefore computes $K'$ first and scales $\delta x$ down uniformly whenever $|K'\delta x|_j$ exceeds a per-joint budget $\tau_{b,j}$, so the bound holds whatever the gains are.
 
 \subsection{Properties and limits}
-\emph{Structured.} With positive weights and $P'\succeq0$, $Q_{uu}$ is positive definite and $K'$ is the optimal feedback of a valid local linear-quadratic problem.
+\emph{Structured.} With positive weights and $P'_N\succeq0$, $Q_{uu}$ is positive definite and $K'$ is the optimal feedback of a valid local linear-quadratic problem.
 The refiner can choose a poor cost, but it cannot produce a gain with flipped signs or a broken coupling between joints.
 $K'$ is also consistent with the contacts because it is computed through the same contact-constrained dynamics.
 
@@ -444,7 +444,7 @@ With $\gamma_K=0$ and $\gamma_P=0$, it reproduces the gains of the MPC exactly.
 \emph{Bounded.} This structure is not a safety guarantee: the gains come from a 0.5\,s horizon and stabilize the model rather than the robot, and extreme weight ratios give high gains that become unstable with actuation delay.
 Each scale therefore has a calibrated bound, since the gains do not respond evenly to the weights; $\gamma_P$ needs only an upper bound, chosen so that the torques stay within their limits for the errors expected after a push.
 $\gamma$ is rate-limited, since a fast-varying gain can destabilize a loop even when every frozen value is stabilizing, and $\gamma_x$ more tightly, since it should cancel the systematic part of the error while the gains handle transients.
-At each decode, the one-step condition $P'-\mathcal R(P')\succeq0$ is checked on a $36\times36$ matrix, and $\gamma_P$ is halved until it holds, provided that $P^0$ itself satisfies it along the walking logs.
+At each decode, the one-step condition $P'_N-\mathcal R(P'_N)\succeq0$ is checked on a $36\times36$ matrix, and $\gamma_P$ is halved until it holds, provided that $P_N$ itself satisfies it along the walking logs.
 A stronger check is left for future work: before $\gamma$ is applied, the closed loop \eqref{eq:cl}, which contains both $K'$ and $\delta x$, could be rolled out over the horizon and $\gamma$ shrunk if the predicted error or torques leave their bounds, as a predictive safety filter does \cite{wabersich2021psf,ames2019cbf,brunke2022safe}.
 
 \emph{Limits.} The decoder only reaches gains that are optimal for some cost on the model's dynamics, so if those dynamics are wrong, the best gain may lie outside this family.
