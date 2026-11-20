@@ -364,23 +364,26 @@ P'_N=P_N+\textstyle\sum_{k=1}^{4}\gamma_{P,k}\,\Pi_k,\qquad \gamma_{P,k}\in[0,\b
 \label{eq:terminal}
 \end{equation}
 where the blocks $k$ are the base pose (6), the joint positions (12), the base velocity (6) and the joint velocities (12), and $\Pi_k=(\mathrm{tr}\,P_{N,kk}/n_k)\,I_{n_k}$ on block $k$ and zero elsewhere, so that $\gamma_{P,k}$ is relative to the curvature the MPC already uses.
-A change $\delta P'_N$ reaches the applied gain as follows, to first order. For readability, the derivation omits the regularization of $Q_{uu}$ and the clamped torques; the decoder keeps both, and with clamped torques \eqref{eq:dK0}--\eqref{eq:dK} hold for the free torques.
-At node 0, the cost terms are unchanged and only $V^+_{xx}=P_1$ changes, so $\delta Q_{uu}=B_0\T\delta P_1B_0$, $\delta Q_{ux}=B_0\T\delta P_1A_0$, and differentiating $K'_0=Q_{uu}^{-1}Q_{ux}$, i.e., $\delta K'_0=Q_{uu}^{-1}(\delta Q_{ux}-\delta Q_{uu}K'_0)$, gives
+A change $\delta P'_N$ reaches the applied gain as follows, to first order. For readability, the derivation omits the regularization of $Q_{uu}$ and the clamped torques; the decoder keeps both, and with clamped torques \eqref{eq:dDDP} and \eqref{eq:dK} hold for the free torques.
+The cost terms do not depend on $P'_N$, so perturbing each line of the recursion \eqref{eq:backward} at node $i$ (left) gives its first-order change (right), with $M_i=A_i-B_iK'_i$ and the index $i$ of $A_i$, $B_i$, $M_i$ dropped:
 \begin{equation}
-\delta K'_0=Q_{uu}^{-1}B_0\T\,\delta P_1\,(A_0-B_0K'_0).
-\label{eq:dK0}
+\begin{alignedat}{3}
+Q_{xx}&=\ell'_{xx}+A\T P_{i+1}A &\,&\to& \;\delta Q_{xx}&=A\T\delta P_{i+1}A\\
+Q_{ux}&=\ell'_{ux}+B\T P_{i+1}A &&\to& \;\delta Q_{ux}&=B\T\delta P_{i+1}A\\
+Q_{uu}&=\ell'_{uu}+B\T P_{i+1}B &&\to& \;\delta Q_{uu}&=B\T\delta P_{i+1}B\\
+K'_i&=Q_{uu}^{-1}Q_{ux} &&\to& \;\delta K'_i&=Q_{uu}^{-1}B\T\delta P_{i+1}M\\
+P_i&=Q_{xx}-Q_{ux}\T K'_i &&\to& \;\delta P_i&=M\T\delta P_{i+1}M
+\end{alignedat}
+\label{eq:dDDP}
 \end{equation}
-At every node, $P_i=Q_{xx}-Q_{ux}\T K'_i-K'^{\top}_iQ_{ux}+K'^{\top}_iQ_{uu}K'_i$ is stationary in $K'$ at the optimal gain, so the change of $K'$ does not contribute to first order, and
+The fourth line follows from $\delta K'_i=Q_{uu}^{-1}(\delta Q_{ux}-\delta Q_{uu}K'_i)$.
+For the last one, $P_i$ equals $Q_{xx}-Q_{ux}\T K'_i-K'^{\top}_iQ_{ux}+K'^{\top}_iQ_{uu}K'_i$, which is stationary in $K'_i$ at the optimal gain, so the change of $K'_i$ does not contribute to first order.
+Chaining the last line from the terminal change $\delta P'_N$ down to node 1 gives $\delta P_1=\Phi\T\delta P'_N\Phi$, and the fourth line at node 0 then gives
 \begin{equation}
-\delta P_i=(A_i-B_iK'_i)\T\,\delta P_{i+1}\,(A_i-B_iK'_i).
-\label{eq:dV}
-\end{equation}
-Chaining \eqref{eq:dV} from the terminal change $\delta P'_N$ down to node 1 and substituting into \eqref{eq:dK0},
-\begin{equation}
-\delta K'_0=Q_{uu}^{-1}B_0\T\,\Phi\T\delta P'_N\,\Phi\,(A_0-B_0K'_0),
+\delta K'_0=Q_{uu}^{-1}B_0\T\,\Phi\T\delta P'_N\,\Phi\,M_0,
 \label{eq:dK}
 \end{equation}
-where $\Phi=(A_{N-1}-B_{N-1}K'_{N-1})\cdots(A_1-B_1K'_1)$ is the closed-loop transition from node 1 to node $N$.
+where $\Phi=M_{N-1}M_{N-2}\cdots M_1$ is the closed-loop transition from node 1 to node $N$.
 Modes that the closed loop damps within the horizon are filtered out by $\Phi$, and only the slow ones, mainly the balance of the base and the CoM, are affected, so four block increments replace the 666 entries of $P'_N$.
 If $P'_N$ were the value Hessian of a longer problem, $K'_0$ would be its gain exactly; adding curvature lets the refiner approach longer-horizon gains without a longer solve, which the running-weight scales cannot do.
 The increments are one-sided: $P'_N\succeq P_N$, and since the Riccati recursion is monotone, $P'_i\succeq P_i$ at every node, so the refiner can only make the cost-to-go more conservative than that of the MPC.
